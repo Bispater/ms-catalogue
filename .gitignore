@@ -115,6 +115,10 @@ logs/
 # CKEditor
 ckeditor/
 
+# Google Cloud Service Account Credentials
+*.json
+plataformarinno-*.json
+
 # Python cache
 __pycache__/
 *.py[cod]
@@ -208,3 +212,7 @@ dmypy.json
 
 # CKEditor
 ckeditor/
+
+# Google Cloud Service Account Credentials
+*.json
+plataformarinno-*.json
