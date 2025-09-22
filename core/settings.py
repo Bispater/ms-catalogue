@@ -228,13 +228,13 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",  # Angular dev server
-    "http://127.0.0.1:4200",
-    "http://localhost:3000",  # React/Next.js dev server (si usas)
-    "http://127.0.0.1:3000",
-]
+# # CORS settings
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:4200",  # Angular dev server
+#     "http://127.0.0.1:4200",
+#     "http://localhost:3000",  # React/Next.js dev server (si usas)
+#     "http://127.0.0.1:3000",
+# ]
 
 # En desarrollo, permite todos los orígenes (menos seguro pero más fácil)
 if DEBUG:
