@@ -7,6 +7,19 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 from slugify import slugify
+import os
+
+
+# Funciones para paths dinámicos por organización
+def get_organization_image_path(instance, filename):
+    """Genera path: {org_slug}/images/{filename} (GS_LOCATION ya incluye ms_catalogue)"""
+    org_slug = getattr(instance.organization, 'slug', 'default') if hasattr(instance, 'organization') and instance.organization else 'default'
+    return os.path.join(org_slug, 'images', filename)
+
+def get_organization_icon_path(instance, filename):
+    """Genera path: {org_slug}/icons/{filename} (GS_LOCATION ya incluye ms_catalogue)"""
+    org_slug = getattr(instance.organization, 'slug', 'default') if hasattr(instance, 'organization') and instance.organization else 'default'
+    return os.path.join(org_slug, 'icons', filename)
 
 # Constantes
 STOCK_STATUS = (
@@ -92,7 +105,7 @@ class Images(TimeStampedModel, SoftDeletableModel, OrganizationRelatedModel):
         max_length=100,
         verbose_name=_('code'))
     image = models.ImageField(
-        upload_to='images/',
+        upload_to=get_organization_image_path,
         verbose_name=_('image')
     )
 
@@ -118,7 +131,7 @@ class BaseModel(models.Model):
         null=True,
         verbose_name=_('description'))
     image = models.ImageField(
-        upload_to='images/',
+        upload_to=get_organization_image_path,
         blank=True,
         null=True,
         verbose_name=_('image')
@@ -158,7 +171,7 @@ class Category(BaseModel, OrganizationRelatedModel):
         verbose_name=_('parent')
     )
     icon_file = models.ImageField(
-        upload_to='icons/',
+        upload_to=get_organization_icon_path,
         blank=True,
         null=True,
         verbose_name=_('icon file')

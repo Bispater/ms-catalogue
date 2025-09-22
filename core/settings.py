@@ -55,6 +55,9 @@ INSTALLED_APPS = [
     
     # Local apps
     'api',
+
+    # Google Cloud Storage
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -249,3 +252,25 @@ if DEBUG:
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Google Cloud Storage - solo en producción
+if not DEBUG:  # Solo en producción
+    # Google Cloud Storage
+    GS_BUCKET_NAME = os.getenv('GS_BUCKET_NAME', 'rinnomanager-media_storage')
+    GS_PROJECT_ID = os.getenv('GS_PROJECT_ID', 'plataformarinno')
+    GS_LOCATION = os.getenv('GS_LOCATION', 'ms_catalogue')
+    
+    # Configuración de credenciales
+    GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+    
+    # Configuración de django-storages para Google Cloud Storage
+    DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
+    GS_DEFAULT_ACL = 'publicRead'  # Para que las imágenes sean públicas
+    GS_BLOB_STORAGE_PATH = ''  # Evita que se incluya la región en el path
+    
+    # URLs para archivos media
+    MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
+else:
+    # Configuración local para desarrollo
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
