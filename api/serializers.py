@@ -115,3 +115,39 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = '__all__'
+
+
+class ClientConfigurationSerializer(serializers.ModelSerializer):
+    """
+    Serializer para la configuración del cliente
+    """
+    logo_url = serializers.SerializerMethodField()
+    favicon_url = serializers.SerializerMethodField()
+    
+    def get_logo_url(self, obj):
+        """Obtiene la URL completa del logo"""
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+    
+    def get_favicon_url(self, obj):
+        """Obtiene la URL completa del favicon"""
+        if obj.favicon:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.favicon.url)
+            return obj.favicon.url
+        return None
+
+    class Meta:
+        model = ClientConfiguration
+        fields = [
+            'id', 'name', 'organization_id', 'primary_color', 
+            'secondary_color', 'accent_color', 'logo', 'favicon',
+            'logo_url', 'favicon_url', 'domain', 'description', 
+            'is_active', 'created', 'modified'
+        ]
+        read_only_fields = ['created', 'modified']

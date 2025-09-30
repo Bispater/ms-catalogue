@@ -78,3 +78,65 @@ class ProductView(generics.ListAPIView):
     filter_backends = (filters.SearchFilter, filters.OrderingFilter, django_filters.rest_framework.DjangoFilterBackend)
     search_fields = ('name', 'sku', 'slug', 'description', 'id', 'categories__name', 'brand__name')
     filter_class = ProductFilter
+
+
+class ClientConfigurationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar las configuraciones de cliente
+    """
+    queryset = ClientConfiguration.objects.filter(is_active=True)
+    serializer_class = ClientConfigurationSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    search_fields = ['name', 'domain', 'description']
+    filterset_fields = ['is_active', 'organization_id']
+    lookup_field = 'name'  # Permite buscar por nombre en lugar de ID
+
+
+class ClientConfigurationByNameView(generics.RetrieveAPIView):
+    """
+    Vista para obtener configuración de cliente por nombre
+    Endpoint: /api/client-config/{client_name}/
+    """
+    queryset = ClientConfiguration.objects.filter(is_active=True)
+    serializer_class = ClientConfigurationSerializer
+    lookup_field = 'name'
+    lookup_url_kwarg = 'client_name'
+
+    def get_object(self):
+        """
+        Busca la configuración por nombre (case-insensitive)
+        """
+        client_name = self.kwargs.get('client_name')
+        try:
+            return ClientConfiguration.objects.get(
+                name__iexact=client_name, 
+                is_active=True
+            )
+        except ClientConfiguration.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound(f"No se encontró configuración para el cliente '{client_name}'")
+
+
+class ClientConfigurationByDomainView(generics.RetrieveAPIView):
+    """
+    Vista para obtener configuración de cliente por dominio
+    Endpoint: /api/client-config-by-domain/{domain}/
+    """
+    queryset = ClientConfiguration.objects.filter(is_active=True)
+    serializer_class = ClientConfigurationSerializer
+    lookup_field = 'domain'
+    lookup_url_kwarg = 'domain'
+
+    def get_object(self):
+        """
+        Busca la configuración por dominio
+        """
+        domain = self.kwargs.get('domain')
+        try:
+            return ClientConfiguration.objects.get(
+                domain__iexact=domain, 
+                is_active=True
+            )
+        except ClientConfiguration.DoesNotExist:
+            from rest_framework.exceptions import NotFound
+            raise NotFound(f"No se encontró configuración para el dominio '{domain}'")

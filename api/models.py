@@ -459,6 +459,87 @@ class Slide(BaseModel, OrganizationRelatedModel):
     def __str__(self):
         return "{}".format(self.name)
 
+# Modelo de Configuración del Cliente
+class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
+    name = models.CharField(
+        max_length=100, 
+        unique=True, 
+        verbose_name=_('client name'),
+        help_text="Nombre del cliente"
+    )
+    organization_id = models.IntegerField(
+        unique=True, 
+        verbose_name=_('organization id'),
+        help_text="ID único para la organización"
+    )
+    primary_color = models.CharField(
+        max_length=7, 
+        default="#FFFFFF", 
+        verbose_name=_('primary color'),
+        help_text="Color principal en formato hexadecimal, ej. #FF5733"
+    )
+    secondary_color = models.CharField(
+        max_length=7, 
+        default="#000000", 
+        verbose_name=_('secondary color'),
+        help_text="Color secundario en formato hexadecimal"
+    )
+    accent_color = models.CharField(
+        max_length=7, 
+        default="#007BFF", 
+        verbose_name=_('accent color'),
+        help_text="Color de acento en formato hexadecimal",
+        blank=True,
+        null=True
+    )
+    logo = models.ImageField(
+        upload_to='client_configs/logos/', 
+        blank=True, 
+        null=True, 
+        verbose_name=_('logo'),
+        help_text="Logo del cliente"
+    )
+    favicon = models.ImageField(
+        upload_to='client_configs/favicons/', 
+        blank=True, 
+        null=True,
+        verbose_name=_('favicon'),
+        help_text="Favicon del cliente"
+    )
+    domain = models.CharField(
+        max_length=255, 
+        unique=True, 
+        verbose_name=_('domain'),
+        help_text="Dominio o subdominio del cliente (ej. cliente.dominio.com)"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('description'),
+        help_text="Descripción del cliente"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('is active'),
+        help_text="Indica si la configuración está activa"
+    )
+
+    class Meta:
+        verbose_name = _('client configuration')
+        verbose_name_plural = _('client configurations')
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        # Validar formato de colores hexadecimales
+        for color_field in ['primary_color', 'secondary_color', 'accent_color']:
+            color_value = getattr(self, color_field)
+            if color_value and not color_value.startswith('#'):
+                setattr(self, color_field, f'#{color_value}')
+        super().save(*args, **kwargs)
+
 # Señales
 @receiver(post_save, sender=Category)
 @prevent_recursion

@@ -229,17 +229,17 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:4200",  # Angular dev server
-#     "http://127.0.0.1:4200",
-#     "http://localhost:3000",  # React/Next.js dev server (si usas)
-#     "http://127.0.0.1:3000",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",  # Angular dev server
+    "http://127.0.0.1:4200",
+    "http://localhost:3000",  # React/Next.js dev server (si usas)
+    "http://127.0.0.1:3000",
+]
 
 # En desarrollo, permite todos los orígenes (menos seguro pero más fácil)
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-    CORS_ALLOW_CREDENTIALS = True
+# if DEBUG:
+#     CORS_ALLOW_ALL_ORIGINS = True
+#     CORS_ALLOW_CREDENTIALS = True
 # Configuración para el servidor de desarrollo
 if DEBUG:
     import mimetypes

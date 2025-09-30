@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Slide
+from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Slide, ClientConfiguration
 from .forms import ProductAdminForm, MyModelForm
 
 class MetaDataInline(admin.StackedInline):
@@ -62,3 +62,36 @@ class SlideAdmin(admin.ModelAdmin):
     list_editable = ['order', 'state']
     readonly_fields = ('created_at', 'updated_at') if hasattr(Slide, 'created_at') and hasattr(Slide, 'updated_at') else ()
     ordering = ('order', 'name')
+
+
+@admin.register(ClientConfiguration)
+class ClientConfigurationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'organization_id', 'domain', 'primary_color', 'is_active', 'created', 'modified']
+    list_filter = ['is_active', 'created', 'modified']
+    search_fields = ['name', 'domain', 'description']
+    list_editable = ['is_active']
+    readonly_fields = ['created', 'modified']
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('name', 'organization_id', 'domain', 'description', 'is_active')
+        }),
+        ('Colores y Branding', {
+            'fields': ('primary_color', 'secondary_color', 'accent_color', 'logo', 'favicon'),
+            'classes': ('collapse',)
+        }),
+        ('Metadatos', {
+            'fields': ('created', 'modified'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Añadir widgets para color picker si están disponibles
+        if 'primary_color' in form.base_fields:
+            form.base_fields['primary_color'].widget.attrs.update({'type': 'color'})
+        if 'secondary_color' in form.base_fields:
+            form.base_fields['secondary_color'].widget.attrs.update({'type': 'color'})
+        if 'accent_color' in form.base_fields:
+            form.base_fields['accent_color'].widget.attrs.update({'type': 'color'})
+        return form
