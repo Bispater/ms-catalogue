@@ -7,6 +7,40 @@ from rest_framework import viewsets, generics
 from .serializers import *
 from .models import *
 
+
+# Filtros personalizados para filtrar por organization slug
+class CategoryFilter(django_filters.FilterSet):
+    org_slug = django_filters.CharFilter(field_name='organization__slug', lookup_expr='iexact')
+
+    class Meta:
+        model = Category
+        fields = ['state', 'parent', 'organization', 'org_slug']
+
+
+class ProductFilterByOrg(django_filters.FilterSet):
+    org_slug = django_filters.CharFilter(field_name='organization__slug', lookup_expr='iexact')
+    id_in = django_filters.BaseInFilter(field_name='id', lookup_expr='in')
+
+    class Meta:
+        model = Product
+        fields = ['state', 'brand', 'categories', 'organization', 'org_slug', 'id_in', 'categories__name', 'categories__id', 'brand__name', 'brand__id']
+
+
+class BrandFilter(django_filters.FilterSet):
+    org_slug = django_filters.CharFilter(field_name='organization__slug', lookup_expr='iexact')
+
+    class Meta:
+        model = Brand
+        fields = ['state', 'organization', 'org_slug']
+
+
+class SlideFilter(django_filters.FilterSet):
+    org_slug = django_filters.CharFilter(field_name='organization__slug', lookup_expr='iexact')
+
+    class Meta:
+        model = Slide
+        fields = ['state', 'virtual', 'organization', 'org_slug']
+
 # Vista de ejemplo protegida por JWT
 class ExampleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -25,7 +59,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'description', 'style', 'state']
-    filterset_fields = ['state', 'parent', 'organization']
+    filterset_class = CategoryFilter
     ordering_fields = ['order', 'name', 'created']
     ordering = ['order', 'name']
 
@@ -35,7 +69,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'sku', 'description', 'short_description']
-    filterset_fields = ['state', 'brand', 'categories', 'organization']
+    filterset_class = ProductFilterByOrg
     ordering_fields = ['name', 'price_1', 'created']
     ordering = ['name']
 
@@ -45,7 +79,7 @@ class BrandViewSet(viewsets.ModelViewSet):
     serializer_class = BrandSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'description']
-    filterset_fields = ['state', 'organization']
+    filterset_class = BrandFilter
     ordering_fields = ['order', 'name']
     ordering = ['order', 'name']
 
@@ -55,7 +89,7 @@ class SlideViewSet(viewsets.ModelViewSet):
     serializer_class = SlideSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'description']
-    filterset_fields = ['state', 'virtual', 'organization']
+    filterset_class = SlideFilter
     ordering_fields = ['order', 'name', 'created']
     ordering = ['order', 'name']
 

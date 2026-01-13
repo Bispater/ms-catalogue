@@ -48,6 +48,27 @@ services:
       - web
     restart: unless-stopped
 
+  db-backup:
+    image: postgres:13
+    volumes:
+      - ./backups:/backups
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    entrypoint: |
+      bash -c 'while true; do
+        BACKUP_FILE="/backups/backup_$$(date +%Y%m%d_%H%M%S).sql"
+        pg_dump > $$BACKUP_FILE
+        echo "Backup created: $$BACKUP_FILE"
+        find /backups -name "backup_*.sql" -mtime +7 -delete
+        sleep 86400
+      done'
+    depends_on:
+      - db
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   static_volume:
