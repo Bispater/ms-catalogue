@@ -454,5 +454,5 @@ Enlace del Proyecto: [https://github.com/tu_usuario/ms-catalogue](https://github
 ---
 
 <div align="center">
-  <sub>Hecho con ❤️ por Tu Nombre</sub>
+  <sub>Hecho con ❤️ por Favric</sub>
 </div>

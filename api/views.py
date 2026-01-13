@@ -25,7 +25,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'description', 'style', 'state']
-    filterset_fields = ['state', 'parent']
+    filterset_fields = ['state', 'parent', 'organization']
     ordering_fields = ['order', 'name', 'created']
     ordering = ['order', 'name']
 
@@ -35,7 +35,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'sku', 'description', 'short_description']
-    filterset_fields = ['state', 'brand', 'categories']
+    filterset_fields = ['state', 'brand', 'categories', 'organization']
     ordering_fields = ['name', 'price_1', 'created']
     ordering = ['name']
 
@@ -45,7 +45,7 @@ class BrandViewSet(viewsets.ModelViewSet):
     serializer_class = BrandSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     search_fields = ['name', 'description']
-    filterset_fields = ['state']
+    filterset_fields = ['state', 'organization']
     ordering_fields = ['order', 'name']
     ordering = ['order', 'name']
 
