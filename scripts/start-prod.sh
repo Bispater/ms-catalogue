@@ -126,6 +126,20 @@ print_message "Deteniendo contenedores existentes..."
 docker compose -f docker-compose.prod.yml down
 print_success "Contenedores detenidos ✓"
 
+# 6.5. Crear directorios necesarios
+print_message "Creando directorios necesarios..."
+
+# Si 'logs' es un archivo, moverlo temporalmente
+if [ -f "logs" ] && [ ! -d "logs" ]; then
+    print_warning "Archivo 'logs' encontrado, moviéndolo a 'logs.sh'..."
+    mv logs logs.sh 2>/dev/null || true
+fi
+
+mkdir -p ./logs/nginx
+mkdir -p ./ssl
+mkdir -p ./backups
+print_success "Directorios creados ✓"
+
 # 7. Construir las imágenes
 print_message "Construyendo imágenes Docker para producción..."
 docker compose -f docker-compose.prod.yml build --no-cache
