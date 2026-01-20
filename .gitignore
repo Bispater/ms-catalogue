@@ -29,9 +29,9 @@ media/
 staticfiles/
 
 # Environment variables
-.env
-.env.*
-!.env.example
+#.env
+#.env.*
+#!.env.example
 
 # Virtual Environment
 venv/
@@ -47,7 +47,7 @@ ENV/
 .DS_Store
 
 # Docker
-*.env
+#.env
 !.env.example
 docker-compose.override.yml
 
@@ -217,3 +217,7 @@ ckeditor/
 *.json
 plataformarinno-*.json
 plataformarinno-534921b9e664.json
+
+# Migrations
+api/migrations
+

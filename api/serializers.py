@@ -151,3 +151,80 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
             'is_active', 'created', 'modified'
         ]
         read_only_fields = ['created', 'modified']
+
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    """
+    Serializer para Organization
+    """
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'slug', 'description', 'created_at', 'updated_at']
+
+
+class CompleteCatalogueSerializer(serializers.ModelSerializer):
+    """
+    Serializer completo para Catalogue con todas sus relaciones
+    """
+    organization = OrganizationSerializer(read_only=True)
+    products = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
+    brands = serializers.SerializerMethodField()
+    slides = serializers.SerializerMethodField()
+    client_configuration = serializers.SerializerMethodField()
+    
+    def get_products(self, obj):
+        """Obtiene todos los productos del catálogo (no eliminados, no variaciones)"""
+        products = Product.objects.filter(
+            catalogue=obj,
+            is_removed=False,
+            parent=None,
+            virtual=False
+        ).select_related('brand').prefetch_related('categories', 'images')
+        return ProductSerializer(products, many=True, context=self.context).data
+    
+    def get_categories(self, obj):
+        """Obtiene todas las categorías de la organización"""
+        categories = Category.objects.filter(
+            organization=obj.organization,
+            virtual=False
+        ).select_related('parent')
+        return CategorySerializer(categories, many=True, context=self.context).data
+    
+    def get_brands(self, obj):
+        """Obtiene todas las marcas de la organización"""
+        brands = Brand.objects.filter(
+            organization=obj.organization,
+            virtual=False
+        ).select_related('parent')
+        return BrandSerializer(brands, many=True, context=self.context).data
+    
+    def get_slides(self, obj):
+        """Obtiene todos los slides del catálogo"""
+        slides = Slide.objects.filter(
+            catalogue=obj,
+            virtual=False,
+            state='publish'
+        )
+        return SlideSerializer(slides, many=True, context=self.context).data
+    
+    def get_client_configuration(self, obj):
+        """Obtiene la configuración del cliente para este catálogo"""
+        try:
+            config = ClientConfiguration.objects.filter(
+                catalogue=obj,
+                is_active=True
+            ).first()
+            if config:
+                return ClientConfigurationSerializer(config, context=self.context).data
+        except Exception as e:
+            print(f"Error obteniendo configuración: {e}")
+        return None
+    
+    class Meta:
+        model = Catalogue
+        fields = [
+            'id', 'name', 'code', 'slug', 'description', 'is_active',
+            'created_at', 'updated_at', 'organization', 'products',
+            'categories', 'brands', 'slides', 'client_configuration'
+        ]

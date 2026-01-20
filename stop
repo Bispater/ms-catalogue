@@ -1,0 +1,3 @@
+#!/bin/bash
+# Wrapper para ejecutar stop-local.sh desde el directorio scripts/
+./scripts/stop-local.sh "$@"

@@ -1,0 +1,3 @@
+#!/bin/bash
+# Wrapper para ejecutar start-prod.sh desde el directorio scripts/
+./scripts/start-prod.sh "$@"
