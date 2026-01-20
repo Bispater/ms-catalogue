@@ -66,19 +66,23 @@ print_success "Archivo .env.prod encontrado ✓"
 
 # 3. Verificar variables críticas
 print_message "Verificando variables críticas..."
-source .env.prod
 
-if [ "$DEBUG" != "False" ]; then
-    print_error "DEBUG debe estar en False para producción"
+# Leer variables sin ejecutar el archivo (evita errores con sintaxis Python)
+DEBUG_VALUE=$(grep "^DEBUG=" .env.prod | cut -d '=' -f2)
+SECRET_KEY_VALUE=$(grep "^SECRET_KEY=" .env.prod | cut -d '=' -f2)
+POSTGRES_PASSWORD_VALUE=$(grep "^POSTGRES_PASSWORD=" .env.prod | cut -d '=' -f2)
+
+if [ "$DEBUG_VALUE" != "False" ]; then
+    print_error "DEBUG debe estar en False para producción (actual: $DEBUG_VALUE)"
     exit 1
 fi
 
-if [ -z "$SECRET_KEY" ] || [ "$SECRET_KEY" == "your-secret-key-here" ]; then
+if [ -z "$SECRET_KEY_VALUE" ] || [ "$SECRET_KEY_VALUE" == "your-secret-key-here" ]; then
     print_error "SECRET_KEY no está configurada correctamente"
     exit 1
 fi
 
-if [ -z "$POSTGRES_PASSWORD" ] || [ "$POSTGRES_PASSWORD" == "postgres" ]; then
+if [ -z "$POSTGRES_PASSWORD_VALUE" ] || [ "$POSTGRES_PASSWORD_VALUE" == "postgres" ]; then
     print_warning "⚠️  Usando contraseña de base de datos por defecto (no recomendado)"
 fi
 
@@ -105,6 +109,10 @@ if docker compose -f docker-compose.prod.yml ps db | grep -q "Up"; then
     read -p "¿Deseas hacer un backup antes de continuar? (s/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Ss]$ ]]; then
+        # Leer variables de base de datos del .env.prod
+        POSTGRES_USER=$(grep "^POSTGRES_USER=" .env.prod | cut -d '=' -f2)
+        POSTGRES_DB=$(grep "^POSTGRES_DB=" .env.prod | cut -d '=' -f2)
+        
         BACKUP_FILE="./backups/backup_$(date +%Y%m%d_%H%M%S).sql"
         mkdir -p ./backups
         print_message "Creando backup en $BACKUP_FILE..."
@@ -130,6 +138,11 @@ print_success "Servicios levantados ✓"
 
 # 9. Esperar a que PostgreSQL esté listo
 print_message "Esperando a que PostgreSQL esté listo..."
+
+# Leer variables de base de datos
+POSTGRES_USER=$(grep "^POSTGRES_USER=" .env.prod | cut -d '=' -f2)
+POSTGRES_DB=$(grep "^POSTGRES_DB=" .env.prod | cut -d '=' -f2)
+
 MAX_TRIES=30
 COUNTER=0
 until docker compose -f docker-compose.prod.yml exec -T db pg_isready -U $POSTGRES_USER -d $POSTGRES_DB > /dev/null 2>&1; do
