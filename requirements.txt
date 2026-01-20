@@ -13,8 +13,14 @@ celery==5.3.1
 redis==4.5.5
 django-extensions==3.2.3
 django-filter==23.3
-# Usando la versión estable de django-ckeditor
-django-ckeditor==6.7.0
+# Usando la versión estable de django-ckeditor (incluye CKEditor 4.25.1-lts - segura)
+django-ckeditor==6.7.1
+
+# Para importación de Excel
+numpy==1.24.3
+pandas==2.0.3
+openpyxl==3.1.2
+requests==2.31.0
 djangorestframework-simplejwt==5.3.0
 django-cors-headers==4.3.1
 

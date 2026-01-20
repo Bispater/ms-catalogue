@@ -18,6 +18,9 @@ urlpatterns = [
     # Otras URLs personalizadas
     path('product/', views.ProductView.as_view(), name='product'),
     
+    # URL para obtener catálogo completo por código
+    path('catalogue/<str:code>/', views.CompleteCatalogueView.as_view(), name='complete-catalogue'),
+    
     # URLs para configuración de cliente
     path('client-config/<str:client_name>/', views.ClientConfigurationByNameView.as_view(), name='client-config-by-name'),
     path('client-config-by-domain/<str:domain>/', views.ClientConfigurationByDomainView.as_view(), name='client-config-by-domain'),

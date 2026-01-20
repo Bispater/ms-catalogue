@@ -1,458 +1,331 @@
-# MS Catalogue
+# 🛍️ Catalogue API
 
-Servicio de catálogo de productos desarrollado con Django REST Framework y PostgreSQL, contenerizado con Docker.
+> **API REST para gestión de catálogos de productos con arquitectura multi-catálogo**
 
-## 📋 Características
-
-- API RESTful para gestión de productos
-- Panel de administración de Django
-- Base de datos PostgreSQL
-- Configuración para desarrollo y producción
-- Manejo de archivos estáticos y multimedia
-- Autenticación JWT (por implementar)
-
-## 🚀 Tecnologías
-
-- Python 3.9
-- Django 4.2
-- Django REST Framework
-- PostgreSQL 13
-- Docker y Docker Compose
-- Gunicorn (producción)
-- Nginx (producción)
-
-## 🏗️ Estructura del Proyecto
-
-```
-ms-catalogue/
-├── api/                 # Aplicación de la API
-│   ├── __init__.py
-│   ├── admin.py
-│   ├── apps.py
-│   ├── migrations/
-│   ├── models.py
-│   ├── serializers.py
-│   ├── tests.py
-│   └── views.py
-├── core/                # Configuración principal del proyecto (antes ms_catalogue)
-│   ├── __init__.py
-│   ├── asgi.py
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-├── static/              # Archivos estáticos (CSS, JS, imágenes)
-├── staticfiles/         # Archivos estáticos recolectados (generado)
-├── media/               # Archivos multimedia subidos por usuarios
-├── .env                # Variables de entorno
-├── .dockerignore
-├── docker-compose.yml
-├── Dockerfile
-├── manage.py
-└── requirements.txt
-```
-
-## 🔧 Configuración
-
-### Variables de Entorno (.env)
-
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
-
-```env
-# Django
-SECRET_KEY=tu_clave_secreta_aqui
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Database
-POSTGRES_DB=ms_catalogue
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-
-# Docker
-DOCKER_ENV=True
-```
-
-## 🚀 Despliegue Local
-
-### Requisitos Previos
-
-- Docker y Docker Compose instalados
-- Python 3.9+ (solo para desarrollo local sin Docker)
-
-### Desarrollo con Docker (Recomendado)
-
-1. Clona el repositorio:
-   ```bash
-   git clone <repo-url>
-   cd ms-catalogue
-   ```
-
-2. Crea el archivo `.env` basado en el ejemplo anterior
-
-3. Construye y ejecuta los contenedores:
-   ```bash
-   docker compose up --build
-   ```
-
-4. Accede a la aplicación:
-   - API: http://localhost:8050/api/
-   - Admin: http://localhost:8050/admin/
-
-5. Crea un superusuario (en otra terminal):
-   ```bash
-   docker compose exec web python manage.py createsuperuser
-   ```
-
-### Desarrollo sin Docker
-
-1. Crea un entorno virtual:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
-   ```
-
-2. Instala dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Configura la base de datos PostgreSQL local
-
-4. Ejecuta las migraciones:
-   ```bash
-   python manage.py migrate
-   ```
-
-5. Crea un superusuario:
-   ```bash
-   python manage.py createsuperuser
-   ```
-
-6. Inicia el servidor de desarrollo:
-   ```bash
-   python manage.py runserver
-   ```
-
-## 🏭 Producción
-
-### Configuración
-
-1. Establece `DEBUG=False` en `.env`
-2. Configura `ALLOWED_HOSTS` con tu dominio
-3. Asegúrate de tener un servicio SMTP configurado para correos
-4. Configura SSL/TLS (recomendado usar Let's Encrypt)
-
-### Despliegue con Docker
-
-1. Construye la imagen para producción:
-   ```bash
-   docker compose -f docker-compose.prod.yml build
-   ```
-
-2. Inicia los servicios:
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d
-   ```
-
-3. Recolecta archivos estáticos:
-   ```bash
-   docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
-   ```
-
-## 🔒 Seguridad
-
-- No expongas el panel de administración públicamente
-- Usa HTTPS en producción
-- Mantén las dependencias actualizadas
-- Usa variables de entorno para secretos
-- Implementa rate limiting
-
-## 🛠️ Comandos Útiles
-
-- **Ver logs**: `docker compose logs -f`
-- **Abrir shell en el contenedor**: `docker compose exec web bash`
-- **Ejecutar pruebas**: `docker compose exec web python manage.py test`
-- **Crear migraciones**: `docker compose exec web python manage.py makemigrations`
-- **Aplicar migraciones**: `docker compose exec web python manage.py migrate`
-
-## 📊 Estructura de la Base de Datos
-
-### Modelo Actual: Producto
-
-- `name`: Nombre del producto (CharField)
-- `description`: Descripción del producto (TextField)
-- `price`: Precio (DecimalField)
-- `created_at`: Fecha de creación (DateTimeField)
-- `updated_at`: Fecha de actualización (DateTimeField)
-
-## 🤝 Contribuir
-
-1. Haz un fork del proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Haz commit de tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Haz push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 🚀 Despliegue en Producción
-
-Sigue estos pasos para desplegar la aplicación en un entorno de producción seguro y escalable:
-
-### 1. Configuración del Servidor
-
-- **Requisitos del Servidor**:
-  - Linux (Ubuntu 20.04/22.04 LTS recomendado)
-  - Docker y Docker Compose instalados
-  - 2+ vCPUs, 4GB+ RAM, 20GB+ almacenamiento
-  - Dominio configurado con registros DNS
-
-- **Actualizar el sistema**:
-  ```bash
-  sudo apt update && sudo apt upgrade -y
-  ```
-
-### 2. Configuración de Variables de Entorno
-
-Crea un archivo `.env.prod` en el servidor con las siguientes variables:
-
-```env
-# Django
-DEBUG=False
-SECRET_KEY=tu_clave_secreta_muy_larga_y_compleja
-ALLOWED_HOSTS=.tudominio.com,localhost,127.0.0.1
-
-# Base de datos
-DB_NAME=nombre_bd
-DB_USER=usuario_bd
-DB_PASSWORD=contraseña_fuerte
-DB_HOST=db
-DB_PORT=5433
-
-# Email
-EMAIL_HOST=smtp.tuservidor.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=tu@email.com
-EMAIL_HOST_PASSWORD=tu_contraseña
-DEFAULT_FROM_EMAIL=no-reply@tudominio.com
-
-# Seguridad
-CSRF_TRUSTED_ORIGINS=https://*.tudominio.com,https://tudominio.com
-SECURE_SSL_REDIRECT=True
-SESSION_COOKIE_SECURE=True
-CSRF_COOKIE_SECURE=True
-SECURE_BROWSER_XSS_FILTER=True
-SECURE_CONTENT_TYPE_NOSNIFF=True
-X_FRAME_OPTIONS=DENY
-
-# CKEditor
-AWS_ACCESS_KEY_ID=tu_access_key
-AWS_SECRET_ACCESS_KEY=tu_secret_key
-AWS_STORAGE_BUCKET_NAME=tu-bucket-s3
-AWS_S3_CUSTOM_DOMAIN=f{tu-bucket-s3}.s3.amazonaws.com
-AWS_DEFAULT_ACL=None
-```
-
-### 3. Configuración de Docker en Producción
-
-Crea un archivo `docker-compose.prod.yml`:
-
-```yaml
-version: '3.8'
-
-services:
-  web:
-    build: .
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
-    env_file: .env.prod
-    restart: always
-    depends_on:
-      - db
-      - redis
-    ports:
-      - "8000:8000"
-    volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/media
-    networks:
-      - app_network
-
-  db:
-    image: postgres:13
-    env_file: .env.prod
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    networks:
-      - app_network
-    restart: always
-
-  redis:
-    image: redis:6
-    command: redis-server --requirepass ${REDIS_PASSWORD:-tupassword}
-    volumes:
-      - redis_data:/data
-    networks:
-      - app_network
-    restart: always
-
-  celery_worker:
-    build: .
-    command: celery -A core worker -l info
-    env_file: .env.prod
-    depends_on:
-      - redis
-      - db
-    volumes:
-      - .:/app
-    networks:
-      - app_network
-    restart: always
-
-  celery_beat:
-    build: .
-    command: celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    env_file: .env.prod
-    depends_on:
-      - redis
-      - db
-      - celery_worker
-    volumes:
-      - .:/app
-    networks:
-      - app_network
-    restart: always
-
-networks:
-  app_network:
-    driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:
-  static_volume:
-  media_volume:
-```
-
-### 4. Configuración de Nginx como Proxy Inverso
-
-Crea un archivo de configuración para Nginx (`/etc/nginx/sites-available/tudominio.com`):
-
-```nginx
-upstream app_server {
-    server web:8000;
-}
-
-server {
-    listen 80;
-    server_name tudominio.com www.tudominio.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name tudominio.com www.tudominio.com;
-
-    ssl_certificate /etc/letsencrypt/live/tudominio.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/tudominio.com/privkey.pem;
-    
-    # Configuración SSL mejorada
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_prefer_server_ciphers on;
-    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256';
-    ssl_session_timeout 1d;
-    ssl_session_cache shared:SSL:50m;
-    ssl_stapling on;
-    ssl_stapling_verify on;
-
-    # Configuración de seguridad
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-
-    # Archivos estáticos y media
-    location /static/ {
-        alias /app/staticfiles/;
-        expires 30d;
-        access_log off;
-        add_header Cache-Control "public";
-    }
-
-    location /media/ {
-        alias /app/media/;
-        expires 30d;
-        access_log off;
-        add_header Cache-Control "public";
-    }
-
-    # Configuración de WebSocket para canales
-    location /ws/ {
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_redirect off;
-        proxy_pass http://app_server;
-    }
-
-    # Configuración principal
-    location / {
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://app_server;
-        proxy_read_timeout 300s;
-        proxy_connect_timeout 75s;
-    }
-}
-```
-
-### 5. Configuración de Certificado SSL
-
-Instala Certbot y obtén un certificado SSL gratuito de Let's Encrypt:
-
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d tudominio.com -d www.tudominio.com
-```
-
-### 6. Configuración de Tareas Programadas
-
-Configura un cron job para renovar automáticamente los certificados SSL:
-
-```bash
-sudo crontab -e
-```
-
-Agrega la siguiente línea:
-```
-0 12 * * * /usr/bin/certbot renew --quiet
-```
-
-### 7. Monitoreo y Mantenimiento
-
-- **Logs**: Configura logrotate para los logs de la aplicación
-- **Monitoreo**: Configura un servicio como Prometheus + Grafana
-- **Backups**: Configura backups automáticos de la base de datos
-- **Actualizaciones**: Programa ventanas de mantenimiento para actualizaciones
-
-### 8. Despliegue Continuo (Opcional)
-
-Configura un pipeline de CI/CD usando GitHub Actions o GitLab CI para despliegues automáticos.
-
-## 📄 Licencia
-
-Distribuido bajo la licencia MIT. Ver `LICENSE` para más información.
-
-## ✉️ Contacto
-
-Tu Nombre - [@tu_twitter](https://twitter.com/tu_twitter)
-
-Enlace del Proyecto: [https://github.com/tu_usuario/ms-catalogue](https://github.com/tu_usuario/ms-catalogue)
+[![Django](https://img.shields.io/badge/Django-4.2.7-green.svg)](https://www.djangoproject.com/)
+[![Python](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13-blue.svg)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
 ---
 
-<div align="center">
-  <sub>Hecho con ❤️ por Favric</sub>
-</div>
+## 🎯 **Descripción**
+
+Sistema de gestión de catálogos de productos con soporte para **múltiples catálogos por organización**, importación de datos desde Excel, gestión de categorías, marcas, imágenes y configuraciones personalizadas.
+
+### **Características Principales**
+
+✅ **Sistema Multi-Catálogo** - Una organización puede tener múltiples catálogos  
+✅ **Importación desde Excel** - Importa productos masivamente con 4 modos diferentes  
+✅ **API REST Completa** - Endpoints para productos, catálogos, categorías, marcas  
+✅ **Admin de Django** - Interfaz administrativa completa  
+✅ **Gestión de Imágenes** - Descarga y asociación automática de imágenes  
+✅ **Configuraciones por Catálogo** - Personalización visual por catálogo  
+✅ **Slides Personalizados** - Banners y slides por catálogo  
+
+---
+
+## 🚀 **Inicio Rápido**
+
+### **1. Clonar el Repositorio**
+```bash
+git clone <repository-url>
+cd catalogue_api
+```
+
+### **2. Configurar Variables de Entorno**
+```bash
+cp .env.example .env
+# Editar .env con tus configuraciones
+```
+
+### **3. Iniciar con Docker**
+```bash
+docker compose up -d
+```
+
+### **4. Crear Superusuario**
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### **5. Acceder**
+- **Admin**: http://localhost:8050/admin/
+- **API**: http://localhost:8050/api/
+
+---
+
+## 📚 **Documentación**
+
+Toda la documentación está organizada en el directorio [`docs/`](docs/):
+
+### **📖 Inicio Rápido**
+- [QUICK_START.md](docs/QUICK_START.md) - Guía rápida de inicio
+- [DOCKER_README.md](docs/DOCKER_README.md) - Configuración con Docker
+- [PRODUCTION_README.md](docs/PRODUCTION_README.md) - Despliegue en producción
+
+### **🏗️ Arquitectura** ⭐
+- [FINAL_SUMMARY.md](docs/FINAL_SUMMARY.md) - Resumen ejecutivo del proyecto
+- [CATALOGUE_ARCHITECTURE.md](docs/CATALOGUE_ARCHITECTURE.md) - Arquitectura de catálogos
+- [CATALOGUE_COMPLETE.md](docs/CATALOGUE_COMPLETE.md) - Implementación completa
+
+### **📥 Importación**
+- [IMPORTER_UPDATED.md](docs/IMPORTER_UPDATED.md) - Guía del importador actualizado
+- [IMPORT_GUIDE.md](docs/IMPORT_GUIDE.md) - Guía completa de importación
+- [FIELD_MAPPING.md](docs/FIELD_MAPPING.md) - Mapeo de campos Excel → Modelo
+
+### **🔄 Migración**
+- [CATALOGUE_MIGRATION_STEPS.md](docs/CATALOGUE_MIGRATION_STEPS.md) - Migración a catálogos
+- [MIGRATION_COMPLETED.md](docs/MIGRATION_COMPLETED.md) - Resumen de migración
+
+### **📑 Índice Completo**
+- [docs/README.md](docs/README.md) - Índice completo de documentación
+
+---
+
+## 🏗️ **Arquitectura**
+
+### **Modelo de Datos**
+
+```
+Organization (1) ──→ (N) Catalogue (1) ──→ (N) Product
+                           ↓
+                      ImportFile
+                           ↓
+                        Slide
+                           ↓
+                  ClientConfiguration
+
+Organization (1) ──→ (N) Category (compartidas)
+Organization (1) ──→ (N) Brand (compartidas)
+Organization (1) ──→ (N) Images (compartidas)
+```
+
+### **Casos de Uso**
+
+#### **1. Catálogos por Temporada**
+```python
+verano = Catalogue.objects.create(name="Verano 2026", slug="verano-2026", organization=org)
+invierno = Catalogue.objects.create(name="Invierno 2026", slug="invierno-2026", organization=org)
+```
+
+#### **2. Catálogos por Canal**
+```python
+b2b = Catalogue.objects.create(name="Mayorista", slug="b2b", organization=org)
+b2c = Catalogue.objects.create(name="Retail", slug="b2c", organization=org)
+```
+
+---
+
+## 📥 **Importación de Productos**
+
+### **Sintaxis**
+```bash
+python scripts/transform_client_excel.py <excel_file> <catalogue_slug> [--mode MODE] [--no-images]
+```
+
+### **Modos de Importación**
+- `soft_delete` - Sincroniza (oculta no incluidos) ⭐ Recomendado
+- `update` - Actualiza existentes y crea nuevos
+- `create_only` - Solo crea nuevos
+- `replace_all` - Elimina todo y recrea ⚠️ Peligroso
+
+### **Ejemplo**
+```bash
+python scripts/transform_client_excel.py productos.xlsx catalogo-principal --mode soft_delete
+```
+
+---
+
+## 🌐 **API Endpoints**
+
+### **Productos**
+```bash
+# Listar todos
+GET /api/products/
+
+# Filtrar por catálogo
+GET /api/products/?catalogue_slug=verano-2026
+
+# Filtrar por organización
+GET /api/products/?org_slug=mi-organizacion
+
+# Obtener uno
+GET /api/products/{id}/
+```
+
+### **Catálogos**
+```bash
+# Listar todos
+GET /api/catalogues/
+
+# Obtener uno
+GET /api/catalogues/{id}/
+```
+
+### **Categorías y Marcas**
+```bash
+GET /api/categories/
+GET /api/brands/
+```
+
+---
+
+## 🛠️ **Tecnologías**
+
+### **Backend**
+- Django 4.2.7
+- Django REST Framework
+- PostgreSQL 13
+- Celery (opcional)
+
+### **Frontend Admin**
+- Django Admin
+- CKEditor para contenido rico
+
+### **Infraestructura**
+- Docker & Docker Compose
+- Nginx (producción)
+- Gunicorn (producción)
+
+---
+
+## 📊 **Estructura del Proyecto**
+
+```
+catalogue_api/
+├── api/                    # App principal
+│   ├── models.py          # Modelos (Catalogue, Product, etc.)
+│   ├── views.py           # Vistas y ViewSets
+│   ├── serializers.py     # Serializers de DRF
+│   ├── admin.py           # Admin de Django
+│   └── migrations/        # Migraciones
+│
+├── core/                   # Configuración del proyecto
+│   ├── settings.py        # Configuración
+│   └── urls.py            # URLs principales
+│
+├── scripts/                # Scripts de utilidad
+│   ├── transform_client_excel.py  # Importador
+│   ├── analyze_client_excel.py    # Analizador
+│   ├── migrate_to_catalogues.py   # Migración
+│   └── test_import.py             # Pruebas
+│
+├── docs/                   # Documentación completa
+│   ├── README.md          # Índice de documentación
+│   ├── FINAL_SUMMARY.md   # Resumen ejecutivo
+│   └── ...                # Más documentos
+│
+├── docker-compose.yml      # Configuración Docker
+├── Dockerfile             # Imagen Docker
+├── requirements.txt       # Dependencias Python
+└── README.md              # Este archivo
+```
+
+---
+
+## 🧪 **Testing**
+
+### **Probar el Sistema**
+```bash
+docker compose exec web python scripts/test_import.py
+```
+
+### **Crear Datos de Prueba**
+```bash
+docker compose exec web python manage.py shell
+
+from api.models import Organization, Catalogue, Product
+
+org = Organization.objects.first()
+catalogue = Catalogue.objects.create(
+    name="Test Catalogue",
+    slug="test-catalogue",
+    organization=org
+)
+
+Product.objects.create(
+    catalogue=catalogue,
+    sku="TEST-001",
+    name="Producto de Prueba",
+    price_1=10000,
+    currency="CLP"
+)
+```
+
+---
+
+## 🔧 **Comandos Útiles**
+
+### **Docker**
+```bash
+# Iniciar servicios
+docker compose up -d
+
+# Ver logs
+docker compose logs -f web
+
+# Reiniciar
+docker compose restart web
+
+# Detener
+docker compose down
+```
+
+### **Django**
+```bash
+# Shell
+docker compose exec web python manage.py shell
+
+# Migraciones
+docker compose exec web python manage.py makemigrations
+docker compose exec web python manage.py migrate
+
+# Crear superusuario
+docker compose exec web python manage.py createsuperuser
+
+# Colectar estáticos
+docker compose exec web python manage.py collectstatic
+```
+
+---
+
+## 📈 **Estado del Proyecto**
+
+- ✅ **Sistema de Catálogos**: Implementado y funcionando
+- ✅ **Importador**: Actualizado y probado
+- ✅ **Migraciones**: Aplicadas exitosamente
+- ✅ **Admin**: Completamente funcional
+- ✅ **API**: Endpoints funcionando
+- ✅ **Documentación**: Completa y actualizada
+
+**Estado**: 🟢 **Producción Ready**
+
+---
+
+## 📞 **Soporte**
+
+### **Documentación**
+Ver el directorio [`docs/`](docs/) para documentación completa.
+
+### **Documentos Clave**
+- [FINAL_SUMMARY.md](docs/FINAL_SUMMARY.md) - Resumen ejecutivo
+- [CATALOGUE_ARCHITECTURE.md](docs/CATALOGUE_ARCHITECTURE.md) - Arquitectura
+- [IMPORTER_UPDATED.md](docs/IMPORTER_UPDATED.md) - Importador
+
+---
+
+## 📝 **Licencia**
+
+[Especificar licencia]
+
+---
+
+## 👥 **Contribuidores**
+
+[Lista de contribuidores]
+
+---
+
+**Última actualización**: 2026-01-20  
+**Versión**: 2.0.0 (Sistema Multi-Catálogo)

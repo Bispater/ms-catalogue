@@ -18,12 +18,14 @@ class CategoryFilter(django_filters.FilterSet):
 
 
 class ProductFilterByOrg(django_filters.FilterSet):
-    org_slug = django_filters.CharFilter(field_name='organization__slug', lookup_expr='iexact')
+    org_slug = django_filters.CharFilter(field_name='catalogue__organization__slug', lookup_expr='iexact')
+    catalogue_slug = django_filters.CharFilter(field_name='catalogue__slug', lookup_expr='iexact')
+    catalogue_code = django_filters.CharFilter(field_name='catalogue__code', lookup_expr='iexact')
     id_in = django_filters.BaseInFilter(field_name='id', lookup_expr='in')
 
     class Meta:
         model = Product
-        fields = ['state', 'brand', 'categories', 'organization', 'org_slug', 'id_in', 'categories__name', 'categories__id', 'brand__name', 'brand__id']
+        fields = ['state', 'brand', 'categories', 'catalogue', 'org_slug', 'catalogue_slug', 'catalogue_code', 'id_in', 'categories__name', 'categories__id', 'brand__name', 'brand__id']
 
 
 class BrandFilter(django_filters.FilterSet):
@@ -35,11 +37,13 @@ class BrandFilter(django_filters.FilterSet):
 
 
 class SlideFilter(django_filters.FilterSet):
-    org_slug = django_filters.CharFilter(field_name='organization__slug', lookup_expr='iexact')
+    org_slug = django_filters.CharFilter(field_name='catalogue__organization__slug', lookup_expr='iexact')
+    catalogue_slug = django_filters.CharFilter(field_name='catalogue__slug', lookup_expr='iexact')
+    catalogue_code = django_filters.CharFilter(field_name='catalogue__code', lookup_expr='iexact')
 
     class Meta:
         model = Slide
-        fields = ['state', 'virtual', 'organization', 'org_slug']
+        fields = ['state', 'virtual', 'catalogue', 'org_slug', 'catalogue_slug', 'catalogue_code']
 
 # Vista de ejemplo protegida por JWT
 class ExampleView(APIView):
@@ -114,6 +118,54 @@ class ProductView(generics.ListAPIView):
     filter_class = ProductFilter
 
 
+class CompleteCatalogueView(APIView):
+    """
+    Vista para obtener toda la información de un catálogo por su código
+    
+    GET /api/catalogue/<code>/
+    
+    Retorna:
+    - Información del catálogo
+    - Información de la organización
+    - Todos los productos (con imágenes, categorías, marcas)
+    - Todas las categorías de la organización
+    - Todas las marcas de la organización
+    - Todos los slides del catálogo
+    - Configuración del cliente
+    """
+    
+    def get(self, request, code):
+        try:
+            # Buscar catálogo por code
+            catalogue = Catalogue.objects.select_related('organization').filter(
+                code=code,
+                is_active=True
+            ).first()
+            
+            if not catalogue:
+                return Response(
+                    {
+                        'error': 'Catálogo no encontrado',
+                        'code': code
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Serializar con toda la información
+            serializer = CompleteCatalogueSerializer(catalogue, context={'request': request})
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {
+                    'error': 'Error al obtener el catálogo',
+                    'detail': str(e)
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class ClientConfigurationViewSet(viewsets.ModelViewSet):
     """
     ViewSet para gestionar las configuraciones de cliente
@@ -122,7 +174,7 @@ class ClientConfigurationViewSet(viewsets.ModelViewSet):
     serializer_class = ClientConfigurationSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['name', 'domain', 'description']
-    filterset_fields = ['is_active', 'organization_id']
+    filterset_fields = ['is_active', 'catalogue', 'organization_id']  # organization_id es legacy
     lookup_field = 'name'  # Permite buscar por nombre en lugar de ID
 
 
