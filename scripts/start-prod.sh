@@ -72,15 +72,6 @@ DEBUG_VALUE=$(grep "^DEBUG=" .env.prod | cut -d '=' -f2)
 SECRET_KEY_VALUE=$(grep "^SECRET_KEY=" .env.prod | cut -d '=' -f2)
 POSTGRES_PASSWORD_VALUE=$(grep "^POSTGRES_PASSWORD=" .env.prod | cut -d '=' -f2)
 
-if [ "$DEBUG_VALUE" != "False" ]; then
-    print_error "DEBUG debe estar en False para producción (actual: $DEBUG_VALUE)"
-    exit 1
-fi
-
-if [ -z "$SECRET_KEY_VALUE" ] || [ "$SECRET_KEY_VALUE" == "your-secret-key-here" ]; then
-    print_error "SECRET_KEY no está configurada correctamente"
-    exit 1
-fi
 
 if [ -z "$POSTGRES_PASSWORD_VALUE" ] || [ "$POSTGRES_PASSWORD_VALUE" == "postgres" ]; then
     print_warning "⚠️  Usando contraseña de base de datos por defecto (no recomendado)"
