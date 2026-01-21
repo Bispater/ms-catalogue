@@ -93,21 +93,7 @@ fi
 
 print_success "Variables críticas verificadas ✓"
 
-# 4. Verificar certificados SSL
-print_message "Verificando certificados SSL..."
-if [ ! -f "/etc/letsencrypt/live/catalogue.favric.cl/fullchain.pem" ]; then
-    print_warning "⚠️  No se encontraron certificados SSL en /etc/letsencrypt/"
-    print_message "El servidor funcionará pero sin HTTPS"
-    read -p "¿Deseas continuar sin SSL? (s/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-        exit 1
-    fi
-else
-    print_success "Certificados SSL encontrados ✓"
-fi
-
-# 5. Backup de base de datos (si existe)
+# 4. Backup de base de datos (si existe)
 print_message "Verificando si hay base de datos existente..."
 if docker compose -f docker-compose.prod.yml ps db | grep -q "Up"; then
     print_warning "Base de datos en ejecución detectada"
@@ -126,12 +112,12 @@ if docker compose -f docker-compose.prod.yml ps db | grep -q "Up"; then
     fi
 fi
 
-# 6. Detener contenedores existentes
+# 5. Detener contenedores existentes
 print_message "Deteniendo contenedores existentes..."
 docker compose -f docker-compose.prod.yml down
 print_success "Contenedores detenidos ✓"
 
-# 6.5. Crear directorios necesarios
+# 6. Crear directorios necesarios
 print_message "Creando directorios necesarios..."
 
 # Si 'logs' es un archivo, moverlo temporalmente
@@ -140,9 +126,9 @@ if [ -f "logs" ] && [ ! -d "logs" ]; then
     mv logs logs.sh 2>/dev/null || true
 fi
 
-mkdir -p ./logs/nginx
-mkdir -p ./ssl
 mkdir -p ./backups
+mkdir -p ./staticfiles
+mkdir -p ./media
 print_success "Directorios creados ✓"
 
 # 7. Preguntar si hacer rebuild completo
@@ -162,7 +148,7 @@ else
     print_message "Usando imágenes existentes (más rápido)"
 fi
 
-# 8. Levantar los servicios
+# 8. Levantar los servicios (Django y PostgreSQL)
 print_message "Levantando servicios de producción..."
 docker compose -f docker-compose.prod.yml up -d
 print_success "Servicios levantados ✓"
@@ -220,8 +206,8 @@ echo -e "${BLUE}📝 Comandos útiles:${NC}"
 echo ""
 echo -e "  Ver logs:           ${YELLOW}docker compose -f docker-compose.prod.yml logs -f${NC}"
 echo -e "  Ver logs de web:    ${YELLOW}docker compose -f docker-compose.prod.yml logs -f web${NC}"
-echo -e "  Ver logs de nginx:  ${YELLOW}docker compose -f docker-compose.prod.yml logs -f nginx${NC}"
 echo -e "  Ver logs de db:     ${YELLOW}docker compose -f docker-compose.prod.yml logs -f db${NC}"
+echo -e "  Ver logs de nginx:  ${YELLOW}sudo tail -f /var/log/nginx/catalogue.favric.cl.error.log${NC}"
 echo -e "  Detener servicios:  ${YELLOW}docker compose -f docker-compose.prod.yml down${NC}"
 echo -e "  Reiniciar:          ${YELLOW}./scripts/start-prod.sh${NC}"
 echo -e "  Shell Django:       ${YELLOW}docker compose -f docker-compose.prod.yml exec web python manage.py shell${NC}"
@@ -229,8 +215,9 @@ echo -e "  Ver backups:        ${YELLOW}ls -lh ./backups/${NC}"
 echo ""
 echo -e "${BLUE}🔍 Monitoreo:${NC}"
 echo ""
-echo -e "  Health check web:   ${YELLOW}curl http://localhost/admin/${NC}"
-echo -e "  Health check nginx: ${YELLOW}curl http://localhost/health/${NC}"
+echo -e "  Health check web:   ${YELLOW}curl http://127.0.0.1:8000/admin/${NC}"
+echo -e "  Health check nginx: ${YELLOW}curl -I https://catalogue.favric.cl${NC}"
+echo -e "  Estado Nginx:       ${YELLOW}sudo systemctl status nginx${NC}"
 echo -e "  Estado contenedor:  ${YELLOW}docker compose -f docker-compose.prod.yml ps${NC}"
 echo ""
 echo -e "${GREEN}✨ El entorno de producción está listo ✨${NC}"
