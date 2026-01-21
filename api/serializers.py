@@ -86,6 +86,12 @@ class BrandSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    tags_list = serializers.SerializerMethodField()
+    
+    def get_tags_list(self, obj):
+        """Retorna las tags como lista"""
+        return obj.get_tags_list()
+    
     def to_representation(self, instance):
         self.fields['variations'] = serializers.SerializerMethodField()
         self.fields['brand'] = BrandSerializer()
@@ -96,18 +102,26 @@ class ProductSerializer(serializers.ModelSerializer):
         data = super(ProductSerializer, self).to_representation(instance)
         
         # Formatear precios según la moneda del catálogo
-        if instance.catalogue and instance.catalogue.currency:
+        # Determinar la moneda a usar
+        currency = None
+        if instance.catalogue and hasattr(instance.catalogue, 'currency') and instance.catalogue.currency:
             currency = instance.catalogue.currency
-            
-            # Formatear precios usando CurrencyFormatter
-            if 'price_1' in data and data['price_1']:
-                data['price_1_formatted'] = CurrencyFormatter.format(data['price_1'], currency)
-            if 'price_2' in data and data['price_2']:
-                data['price_2_formatted'] = CurrencyFormatter.format(data['price_2'], currency)
-            
-            # Agregar información de moneda
-            data['currency'] = currency
-            data['currency_info'] = CurrencyFormatter.get_currency_info(currency)
+        elif hasattr(instance, 'currency') and instance.currency:
+            # Si el producto tiene su propia moneda
+            currency = instance.currency
+        else:
+            # Por defecto usar CLP
+            currency = 'CLP'
+        
+        # Formatear precios usando CurrencyFormatter
+        if 'price_1' in data and data['price_1']:
+            data['price_1_formatted'] = CurrencyFormatter.format(data['price_1'], currency)
+        if 'price_2' in data and data['price_2']:
+            data['price_2_formatted'] = CurrencyFormatter.format(data['price_2'], currency)
+        
+        # Agregar información de moneda
+        data['currency'] = currency
+        data['currency_info'] = CurrencyFormatter.get_currency_info(currency)
         
         return data
 

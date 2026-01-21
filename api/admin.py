@@ -10,8 +10,8 @@ class MetaDataInline(admin.StackedInline):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_filter = ['catalogue', 'catalogue__organization', 'currency', 'categories']
-    search_fields = ['name', 'description', 'sku']
-    list_display = ['name', 'catalogue', 'brand', 'currency', 'short_description', 'slug', 'parent', 'state']
+    search_fields = ['name', 'description', 'sku', 'tags']
+    list_display = ['name', 'catalogue', 'brand', 'currency', 'tags', 'state']
     inlines = [MetaDataInline]
     form = ProductAdminForm
     readonly_fields = ('created', 'modified')
@@ -60,6 +60,14 @@ class ImportFileAdmin(admin.ModelAdmin):
             return self.readonly_fields
         else:  # Creando nuevo
             return ('created', 'modified', 'uploaded')
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Pre-seleccionar usuario actual al crear nuevo"""
+        form = super().get_form(request, obj, **kwargs)
+        if not obj and 'user_created' in form.base_fields:
+            # Pre-seleccionar usuario actual
+            form.base_fields['user_created'].initial = request.user.id
+        return form
     
     def save_model(self, request, obj, form, change):
         """Guardar y asignar usuario automáticamente"""

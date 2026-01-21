@@ -292,3 +292,8 @@ else:
     # Configuración local para desarrollo
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Silenciar warnings conocidos
+SILENCED_SYSTEM_CHECKS = [
+    'ckeditor.W001',  # CKEditor 4 security warning
+]

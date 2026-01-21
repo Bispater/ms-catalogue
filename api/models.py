@@ -8,6 +8,58 @@ from django.dispatch import receiver
 from model_utils.models import TimeStampedModel, SoftDeletableModel
 from slugify import slugify
 import os
+import re
+
+
+# Función para generar tags automáticamente
+def generate_tags_from_text(text, category_name=None):
+    """
+    Genera tags desde un texto, removiendo conectores y palabras comunes
+    
+    Args:
+        text: Texto a procesar (ej: nombre del producto)
+        category_name: Nombre de la categoría (opcional)
+    
+    Returns:
+        String con tags separadas por comas
+    
+    Example:
+        >>> generate_tags_from_text("Fernet con Cola", "Destilado")
+        "fernet, cola, destilado"
+    """
+    if not text:
+        return ""
+    
+    # Convertir a minúsculas
+    text = text.lower()
+    
+    # Conectores y palabras comunes a remover (español)
+    stop_words = {
+        'con', 'sin', 'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas',
+        'y', 'o', 'pero', 'para', 'por', 'en', 'a', 'al', 'sobre', 'bajo', 'entre',
+        'desde', 'hasta', 'hacia', 'según', 'durante', 'mediante', 'contra', 'ante'
+    }
+    
+    # Remover caracteres especiales y dividir en palabras
+    words = re.findall(r'\b[a-záéíóúñü]+\b', text)
+    
+    # Filtrar palabras: remover stop words y palabras muy cortas
+    tags = [word for word in words if word not in stop_words and len(word) > 2]
+    
+    # Agregar categoría si existe
+    if category_name:
+        category_tags = re.findall(r'\b[a-záéíóúñü]+\b', category_name.lower())
+        tags.extend([tag for tag in category_tags if tag not in stop_words and len(tag) > 2])
+    
+    # Remover duplicados manteniendo orden
+    seen = set()
+    unique_tags = []
+    for tag in tags:
+        if tag not in seen:
+            seen.add(tag)
+            unique_tags.append(tag)
+    
+    return ', '.join(unique_tags)
 
 
 # Funciones para paths dinámicos por organización
@@ -152,6 +204,13 @@ class BaseModel(models.Model):
         default='',
         blank=True,
         verbose_name=_('style'))
+    tags = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name=_('tags'),
+        help_text=_('Etiquetas separadas por comas (ej: bebida, vino, líquidos)')
+    )
     state = models.CharField(
         max_length=255,
         choices=OBJECT_STATUS,
@@ -164,7 +223,35 @@ class BaseModel(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
+        # Limpiar tags: remover espacios extras
+        if self.tags:
+            tags_list = [tag.strip() for tag in self.tags.split(',') if tag.strip()]
+            self.tags = ', '.join(tags_list)
         super().save(*args, **kwargs)
+    
+    def get_tags_list(self):
+        """Retorna las tags como lista"""
+        if not self.tags:
+            return []
+        return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
+    
+    def add_tag(self, tag):
+        """Agrega una tag si no existe"""
+        tags_list = self.get_tags_list()
+        tag = tag.strip()
+        if tag and tag not in tags_list:
+            tags_list.append(tag)
+            self.tags = ', '.join(tags_list)
+            self.save(update_fields=['tags'])
+    
+    def remove_tag(self, tag):
+        """Remueve una tag si existe"""
+        tags_list = self.get_tags_list()
+        tag = tag.strip()
+        if tag in tags_list:
+            tags_list.remove(tag)
+            self.tags = ', '.join(tags_list) if tags_list else None
+            self.save(update_fields=['tags'])
 
 # Modelo de Categoría
 class Category(BaseModel, OrganizationRelatedModel):
@@ -410,7 +497,7 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
             ('replace_all', 'Reemplazar todo (eliminar y recrear)'),
             ('soft_delete', 'Sincronizar (ocultar no incluidos)'),
         ],
-        default='soft_delete',
+        default='update',
         verbose_name=_('import mode'),
         help_text=_('Modo de importación: update (actualiza y crea), create_only (solo nuevos), replace_all (elimina todo), soft_delete (oculta no incluidos)')
     )
@@ -591,6 +678,23 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
                         short_description = row['NOMBRE']
                         full_description = ""
                     
+                    # Stock - buscar columna STOCK con diferentes nombres
+                    stock_quantity = 100  # Valor por defecto
+                    manage_stock = False
+                    stock_status = 'instock'
+                    
+                    for col_name in ['STOCK', 'Stock', 'stock', 'CANTIDAD', 'Cantidad']:
+                        if col_name in df.columns and pd.notna(row.get(col_name)):
+                            try:
+                                stock_quantity = int(row[col_name])
+                                manage_stock = True  # Si viene stock, activar gestión
+                                # Determinar estado según cantidad
+                                stock_status = 'instock' if stock_quantity > 0 else 'outofstock'
+                                logger.info(f"📦 Stock para {sku}: {stock_quantity}")
+                                break
+                            except (ValueError, TypeError):
+                                logger.warning(f"⚠️ Valor de stock inválido para {sku}: {row.get(col_name)}")
+                    
                     # Datos del producto
                     product_data = {
                         'name': row['NOMBRE'],
@@ -599,9 +703,9 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
                         'price_1': price_1,
                         'price_2': price_2,
                         'currency': self.currency or 'CLP',
-                        'stock_status': 'instock',
-                        'stock_quantity': 100,
-                        'manage_stock': False,
+                        'stock_status': stock_status,
+                        'stock_quantity': stock_quantity,
+                        'manage_stock': manage_stock,
                         'state': 'publish',
                         'virtual': False,
                     }
@@ -647,6 +751,19 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
                                 logger.info(f"🔗 Categoría '{categoria_nombre}' asociada a {sku}")
                         except Exception as cat_error:
                             logger.warning(f"⚠️ Error procesando categoría para {sku}: {str(cat_error)}")
+                    
+                    # Generar tags automáticamente desde nombre y categoría
+                    try:
+                        auto_tags = generate_tags_from_text(
+                            product.name,
+                            categoria_nombre if pd.notna(categoria_nombre) else None
+                        )
+                        if auto_tags:
+                            product.tags = auto_tags
+                            product.save(update_fields=['tags'])
+                            logger.info(f"🏷️ Tags generadas para {sku}: {auto_tags}")
+                    except Exception as tag_error:
+                        logger.warning(f"⚠️ Error generando tags para {sku}: {str(tag_error)}")
                     
                     # Procesar MARCA
                     marca_nombre = row.get('MARCA')
@@ -1046,6 +1163,29 @@ class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
         super().save(*args, **kwargs)
 
 # Señales
+@receiver(post_save, sender=Product)
+@prevent_recursion
+def update_stock_status(sender, instance=None, created=False, **kwargs):
+    """
+    Actualiza automáticamente el stock_status cuando stock_quantity cambia
+    - Si stock_quantity = 0 → stock_status = 'outofstock'
+    - Si stock_quantity > 0 y manage_stock = True → stock_status = 'instock'
+    """
+    if instance and instance.manage_stock:
+        # Determinar el nuevo estado
+        new_status = None
+        if instance.stock_quantity == 0:
+            new_status = 'outofstock'
+        elif instance.stock_quantity > 0 and instance.stock_status == 'outofstock':
+            # Si había stock agotado y ahora hay stock, cambiar a instock
+            new_status = 'instock'
+        
+        # Actualizar solo si cambió el estado
+        if new_status and instance.stock_status != new_status:
+            instance.stock_status = new_status
+            instance.save(update_fields=['stock_status'])
+
+
 @receiver(post_save, sender=Category)
 @prevent_recursion
 def save_category(sender, instance=None, created=False, **kwargs):
