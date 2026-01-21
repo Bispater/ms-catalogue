@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import *
+from .utils import CurrencyFormatter
 
 
 class CategoryLiteSerializer(serializers.ModelSerializer):
@@ -90,7 +91,25 @@ class ProductSerializer(serializers.ModelSerializer):
         self.fields['brand'] = BrandSerializer()
         self.fields['images'] = ImagesSerializer(many=True)
         self.fields['categories'] = serializers.SerializerMethodField()
-        return super(ProductSerializer, self).to_representation(instance)
+        
+        # Obtener representación base
+        data = super(ProductSerializer, self).to_representation(instance)
+        
+        # Formatear precios según la moneda del catálogo
+        if instance.catalogue and instance.catalogue.currency:
+            currency = instance.catalogue.currency
+            
+            # Formatear precios usando CurrencyFormatter
+            if 'price_1' in data and data['price_1']:
+                data['price_1_formatted'] = CurrencyFormatter.format(data['price_1'], currency)
+            if 'price_2' in data and data['price_2']:
+                data['price_2_formatted'] = CurrencyFormatter.format(data['price_2'], currency)
+            
+            # Agregar información de moneda
+            data['currency'] = currency
+            data['currency_info'] = CurrencyFormatter.get_currency_info(currency)
+        
+        return data
 
     def get_variations(self, obj):
         result = None

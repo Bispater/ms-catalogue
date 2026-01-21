@@ -329,5 +329,45 @@ Ver el directorio [`docs/`](docs/) para documentación completa.
 
 ---
 
-**Última actualización**: 2026-01-20  
+## ⚡ Comandos Rápidos
+
+### **Desarrollo Local**
+
+```bash
+# Iniciar proyecto
+./start
+
+# Detener proyecto
+./stop
+
+# Crear superuser
+./scripts/create-superuser.sh
+
+# Acceder
+http://localhost:8050/admin/
+```
+
+### **Producción**
+
+```bash
+# Primera vez (Setup completo)
+./reset                           # Limpiar todo
+./start-prod                      # Iniciar servicios
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+./scripts/create-superuser.sh    # Crear superuser
+
+# Deploy normal (después del setup)
+git pull origin develop
+./quick-deploy.sh                 # Deploy automático (NO ejecuta migraciones)
+
+# Aplicar migraciones manualmente (solo cuando sea necesario)
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+
+# Acceder
+https://catalogue.favric.cl/admin/
+```
+
+---
+
+**Última actualización**: 2026-01-21  
 **Versión**: 2.0.0 (Sistema Multi-Catálogo)

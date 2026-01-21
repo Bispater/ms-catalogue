@@ -37,7 +37,13 @@ OBJECT_STATUS = (
 
 CURRENCY = (
     ('CLP', 'Peso Chileno (CLP)'),
-    ('PEN', 'Sol (PEN)'),
+    ('USD', 'Dólar Estadounidense (USD)'),
+    ('EUR', 'Euro (EUR)'),
+    ('ARS', 'Peso Argentino (ARS)'),
+    ('BRL', 'Real Brasileño (BRL)'),
+    ('MXN', 'Peso Mexicano (MXN)'),
+    ('COP', 'Peso Colombiano (COP)'),
+    ('PEN', 'Sol Peruano (PEN)'),
 )
 
 # Modelo base para la organización
@@ -385,6 +391,7 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
         choices=CURRENCY,
         blank=True,
         null=True,
+        default='CLP',
         verbose_name=_('currency'))
     description = models.TextField(
         blank=True,
@@ -457,8 +464,21 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
             logger.info(f"📊 Excel leído: {len(df)} filas")
             logger.info(f"📋 Columnas encontradas: {list(df.columns)}")
             
-            # Validar columnas requeridas
-            required_columns = ['ID_SKU', 'NOMBRE', 'PRECIO']
+            # Detectar columna SKU (buscar cualquier columna que contenga "SKU" o "sku")
+            sku_column = None
+            for col in df.columns:
+                if 'sku' in str(col).lower():
+                    sku_column = col
+                    logger.info(f"✅ Columna SKU detectada: {col}")
+                    break
+            
+            # Si no se encuentra, usar la primera columna
+            if not sku_column:
+                sku_column = df.columns[0]
+                logger.warning(f"⚠️ No se encontró columna SKU, usando primera columna: {sku_column}")
+            
+            # Validar columnas requeridas (NOMBRE y PRECIO)
+            required_columns = ['NOMBRE', 'PRECIO']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -488,7 +508,7 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
             for index, row in df.iterrows():
                 try:
                     # Usar SKU tal como viene en el Excel (quitar .0 si es número)
-                    sku_raw = row['ID_SKU']
+                    sku_raw = row[sku_column]
                     
                     # Validar que SKU no sea NaN o vacío
                     if pd.isna(sku_raw) or str(sku_raw).strip() == '' or str(sku_raw).strip().lower() == 'nan':
@@ -525,18 +545,32 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
                     price_1 = Decimal(str(row['PRECIO']))
                     price_2 = None
                     
-                    if pd.notna(row.get('PRECIO_OFERTA')):
-                        price_2 = Decimal(str(row['PRECIO_OFERTA']))
-                    elif pd.notna(row.get('DESCUENTO_EN_%')):
-                        # Manejar tanto string "20%" como número 20 o 0.20
-                        descuento_val = row['DESCUENTO_EN_%']
-                        if isinstance(descuento_val, str):
-                            descuento_val = descuento_val.strip('%')
-                        descuento = float(descuento_val)
-                        # Si es mayor a 1, asumimos que es porcentaje (ej: 20 = 20%)
-                        if descuento > 1:
-                            descuento = descuento / 100
-                        price_2 = price_1 * Decimal(str(1 - descuento))
+                    # Buscar precio oferta con diferentes nombres de columna
+                    precio_oferta = None
+                    for col_name in ['PRECIO_OFERTA', 'PRECIO OFERTA', 'Precio Oferta', 'precio_oferta']:
+                        if col_name in df.columns and pd.notna(row.get(col_name)):
+                            precio_oferta = row[col_name]
+                            break
+                    
+                    if precio_oferta:
+                        price_2 = Decimal(str(precio_oferta))
+                    else:
+                        # Buscar descuento con diferentes nombres de columna
+                        descuento_val = None
+                        for col_name in ['DESCUENTO_EN_%', 'DESCUENTO EN %', 'DESCUENTO', 'Descuento', 'descuento']:
+                            if col_name in df.columns and pd.notna(row.get(col_name)):
+                                descuento_val = row[col_name]
+                                break
+                        
+                        if descuento_val is not None:
+                            # Manejar tanto string "20%" como número 20 o 0.20
+                            if isinstance(descuento_val, str):
+                                descuento_val = descuento_val.strip('%')
+                            descuento = float(descuento_val)
+                            # Si es mayor a 1, asumimos que es porcentaje (ej: 20 = 20%)
+                            if descuento > 1:
+                                descuento = descuento / 100
+                            price_2 = price_1 * Decimal(str(1 - descuento))
                     
                     # Descripción - buscar con o sin tilde
                     descripcion = None
@@ -861,6 +895,13 @@ class Catalogue(models.Model):
         default=True,
         verbose_name=_('is active'),
         help_text=_('Indica si el catálogo está activo'))
+    currency = models.CharField(
+        max_length=10,
+        choices=CURRENCY,
+        blank=True,
+        null=True,
+        default='CLP',
+        verbose_name=_('currency'))
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_('created at'))
