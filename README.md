@@ -60,6 +60,8 @@ docker compose exec web python manage.py createsuperuser
 Toda la documentación está organizada en el directorio [`docs/`](docs/):
 
 ### **📖 Inicio Rápido**
+- [QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md) - ⚡ Comandos más usados
+- [MIGRATIONS_GUIDE.md](docs/MIGRATIONS_GUIDE.md) - 📋 Guía completa de migraciones
 - [QUICK_START.md](docs/QUICK_START.md) - Guía rápida de inicio
 - [DOCKER_README.md](docs/DOCKER_README.md) - Configuración con Docker
 - [PRODUCTION_README.md](docs/PRODUCTION_README.md) - Despliegue en producción

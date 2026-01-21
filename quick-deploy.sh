@@ -43,10 +43,12 @@ docker compose -f docker-compose.prod.yml up -d
 echo -e "${YELLOW}⏳ Esperando PostgreSQL...${NC}"
 sleep 10
 
-# 6. Manejar migraciones con --fake-initial (no recrea tablas existentes)
-echo -e "${YELLOW}🔄 Aplicando migraciones...${NC}"
-docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --fake-initial || {
-    echo -e "${YELLOW}⚠️  Migraciones ya aplicadas o error${NC}"
+# 6. Aplicar solo migraciones nuevas (no recrea tablas existentes)
+echo -e "${YELLOW}🔄 Aplicando migraciones nuevas...${NC}"
+# --fake-initial: Si 0001_initial ya fue aplicada, la salta
+# Solo aplica migraciones nuevas (0002, 0003, etc.)
+docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --fake-initial --noinput || {
+    echo -e "${YELLOW}⚠️  No hay migraciones nuevas o error${NC}"
 }
 
 # 7. Esperar un poco más
