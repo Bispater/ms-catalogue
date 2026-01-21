@@ -73,6 +73,31 @@ class OrganizationAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
     prepopulated_fields = {'slug': ('name',)}
 
+class ClientConfigurationInline(admin.StackedInline):
+    model = ClientConfiguration
+    extra = 0
+    classes = ['collapse']
+    fieldsets = (
+        ('Configuración del Cliente', {
+            'fields': ('name', 'domain', 'description', 'is_active')
+        }),
+        ('Colores y Branding', {
+            'fields': ('primary_color', 'secondary_color', 'accent_color', 'logo', 'favicon'),
+        }),
+        ('Metadata', {
+            'fields': ('metadata',),
+        }),
+    )
+    
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        # Agregar color picker a los campos de color
+        for field_name in ['primary_color', 'secondary_color', 'accent_color']:
+            if field_name in formset.form.base_fields:
+                formset.form.base_fields[field_name].widget.attrs.update({'type': 'color'})
+        return formset
+
+
 @admin.register(Catalogue)
 class CatalogueAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'organization', 'currency', 'is_active', 'created_at')
@@ -81,6 +106,7 @@ class CatalogueAdmin(admin.ModelAdmin):
     list_editable = ('is_active',)
     prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ('created_at', 'updated_at')
+    inlines = [ClientConfigurationInline]
     fieldsets = (
         ('Información Básica', {
             'fields': ('name', 'code', 'slug', 'organization', 'description', 'currency', 'is_active')
@@ -103,20 +129,24 @@ class SlideAdmin(admin.ModelAdmin):
 
 @admin.register(ClientConfiguration)
 class ClientConfigurationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'catalogue', 'organization_id', 'domain', 'primary_color', 'is_active', 'created', 'modified']
+    list_display = ['name', 'catalogue', 'domain', 'primary_color', 'is_active', 'created', 'modified']
     list_filter = ['catalogue', 'catalogue__organization', 'is_active', 'created', 'modified']
     search_fields = ['name', 'domain', 'description']
     list_editable = ['is_active']
     readonly_fields = ['created', 'modified']
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'catalogue', 'organization_id', 'domain', 'description', 'is_active')
+            'fields': ('name', 'catalogue', 'domain', 'description', 'is_active')
         }),
         ('Colores y Branding', {
             'fields': ('primary_color', 'secondary_color', 'accent_color', 'logo', 'favicon'),
             'classes': ('collapse',)
         }),
-        ('Metadatos', {
+        ('Metadata', {
+            'fields': ('metadata',),
+            'classes': ('collapse',)
+        }),
+        ('Fechas', {
             'fields': ('created', 'modified'),
             'classes': ('collapse',)
         })

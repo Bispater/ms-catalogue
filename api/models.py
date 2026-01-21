@@ -970,11 +970,6 @@ class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
         verbose_name=_('client name'),
         help_text="Nombre del cliente"
     )
-    organization_id = models.IntegerField(
-        unique=True, 
-        verbose_name=_('organization id'),
-        help_text="ID único para la organización (legacy)"
-    )
     primary_color = models.CharField(
         max_length=7, 
         default="#FFFFFF", 
@@ -1020,6 +1015,13 @@ class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
         null=True,
         verbose_name=_('description'),
         help_text="Descripción del cliente"
+    )
+    metadata = models.JSONField(
+        blank=True,
+        null=True,
+        default=dict,
+        verbose_name=_('metadata'),
+        help_text="Información adicional en formato JSON"
     )
     is_active = models.BooleanField(
         default=True,
