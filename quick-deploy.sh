@@ -39,20 +39,15 @@ fi
 echo -e "${YELLOW}🚀 Levantando servicios...${NC}"
 docker compose -f docker-compose.prod.yml up -d
 
-# 5. Esperar que PostgreSQL esté listo
-echo -e "${YELLOW}⏳ Esperando PostgreSQL...${NC}"
-sleep 10
+# 5. Esperar que los servicios estén listos
+echo -e "${YELLOW}⏳ Esperando servicios...${NC}"
+sleep 30
 
-# 6. Aplicar solo migraciones nuevas (no recrea tablas existentes)
-echo -e "${YELLOW}🔄 Aplicando migraciones nuevas...${NC}"
-# --fake-initial: Si 0001_initial ya fue aplicada, la salta
-# Solo aplica migraciones nuevas (0002, 0003, etc.)
-docker compose -f docker-compose.prod.yml exec -T web python manage.py migrate --fake-initial --noinput || {
-    echo -e "${YELLOW}⚠️  No hay migraciones nuevas o error${NC}"
-}
-
-# 7. Esperar un poco más
-sleep 20
+# 6. MIGRACIONES DESHABILITADAS (ejecutar manualmente si es necesario)
+# Para aplicar migraciones manualmente:
+# docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+echo -e "${YELLOW}⚠️  Migraciones NO se aplican automáticamente${NC}"
+echo -e "${YELLOW}   Para aplicar: docker compose -f docker-compose.prod.yml exec web python manage.py migrate${NC}"
 
 # 6. Estado
 echo ""
