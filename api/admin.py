@@ -41,9 +41,9 @@ class ImagesAdmin(admin.ModelAdmin):
 
 @admin.register(ImportFile)
 class ImportFileAdmin(admin.ModelAdmin):
-    list_filter = ['catalogue', 'catalogue__organization', 'uploaded', 'import_mode', 'user_created']
+    list_filter = ['catalogue', 'catalogue__organization', 'currency', 'uploaded', 'import_mode', 'user_created']
     search_fields = ['description']
-    list_display = ['id', 'catalogue', 'import_mode', 'user_created', 'created', 'description', 'file', 'uploaded', 'import_status']
+    list_display = ['id', 'catalogue', 'currency', 'import_mode', 'user_created', 'created', 'description', 'file', 'uploaded', 'import_status']
     readonly_fields = ('created', 'modified', 'uploaded', 'user_created')
     exclude = ()  # No excluir nada, pero user_created será readonly
     
@@ -75,15 +75,15 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Catalogue)
 class CatalogueAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'organization', 'slug', 'is_active', 'created_at')
-    list_filter = ('organization', 'is_active', 'created_at')
+    list_display = ('code', 'name', 'organization', 'currency', 'is_active', 'created_at')
+    list_filter = ('organization', 'currency', 'is_active', 'created_at')
     search_fields = ('code', 'name', 'description', 'slug')
     list_editable = ('is_active',)
     prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Información Básica', {
-            'fields': ('name', 'code', 'slug', 'organization', 'description', 'is_active')
+            'fields': ('name', 'code', 'slug', 'organization', 'description', 'currency', 'is_active')
         }),
         ('Metadatos', {
             'fields': ('created_at', 'updated_at'),

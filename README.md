@@ -367,6 +367,17 @@ docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 https://catalogue.favric.cl/admin/
 ```
 
+
+# Setup parcial (Actualizaciones y migrate solamente    )
+
+```bash
+git pull origin develop
+./quick-deploy.sh                 # Deploy automático (NO ejecuta migraciones)
+
+# Aplicar migraciones manualmente (solo cuando sea necesario)
+docker compose -f docker-compose.prod.yml exec web python manage.py migrate
+```
+
 ---
 
 **Última actualización**: 2026-01-21  
