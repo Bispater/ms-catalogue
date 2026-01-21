@@ -451,8 +451,9 @@ class ImportFile(TimeStampedModel, SoftDeletableModel):
             
             logger.info(f"🚀 Iniciando importación de {self.file.name}")
             
-            # Leer Excel
-            df = pd.read_excel(self.file.path)
+            # Leer Excel (compatible con storage local y remoto)
+            with self.file.open('rb') as f:
+                df = pd.read_excel(f)
             logger.info(f"📊 Excel leído: {len(df)} filas")
             logger.info(f"📋 Columnas encontradas: {list(df.columns)}")
             
