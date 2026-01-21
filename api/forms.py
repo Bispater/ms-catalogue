@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.utils.translation import gettext_lazy as _
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
-from .models import Product, Category
+from .models import Product, Category, ClientConfiguration
 
 
 class ProductAdminForm(forms.ModelForm):
@@ -58,3 +58,17 @@ class MyModelForm(forms.ModelForm):
     class Meta:
         model = Category
         fields = '__all__'
+
+
+class ClientConfigurationForm(forms.ModelForm):
+    """
+    Formulario personalizado para ClientConfiguration con color picker.
+    """
+    class Meta:
+        model = ClientConfiguration
+        fields = '__all__'
+        widgets = {
+            'primary_color': forms.TextInput(attrs={'type': 'color'}),
+            'secondary_color': forms.TextInput(attrs={'type': 'color'}),
+            'accent_color': forms.TextInput(attrs={'type': 'color'}),
+        }

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration
-from .forms import ProductAdminForm, MyModelForm
+from .forms import ProductAdminForm, MyModelForm, ClientConfigurationForm
 
 class MetaDataInline(admin.StackedInline):
     model = MetaData
@@ -75,6 +75,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 class ClientConfigurationInline(admin.StackedInline):
     model = ClientConfiguration
+    form = ClientConfigurationForm
     extra = 0
     classes = ['collapse']
     fieldsets = (
@@ -88,14 +89,6 @@ class ClientConfigurationInline(admin.StackedInline):
             'fields': ('metadata',),
         }),
     )
-    
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-        # Agregar color picker a los campos de color
-        for field_name in ['primary_color', 'secondary_color', 'accent_color']:
-            if field_name in formset.form.base_fields:
-                formset.form.base_fields[field_name].widget.attrs.update({'type': 'color'})
-        return formset
 
 
 @admin.register(Catalogue)
@@ -129,6 +122,7 @@ class SlideAdmin(admin.ModelAdmin):
 
 @admin.register(ClientConfiguration)
 class ClientConfigurationAdmin(admin.ModelAdmin):
+    form = ClientConfigurationForm
     list_display = ['name', 'catalogue', 'domain', 'primary_color', 'is_active', 'created', 'modified']
     list_filter = ['catalogue', 'catalogue__organization', 'is_active', 'created', 'modified']
     search_fields = ['name', 'domain', 'description']
@@ -151,14 +145,3 @@ class ClientConfigurationAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
-    
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        # Añadir widgets para color picker si están disponibles
-        if 'primary_color' in form.base_fields:
-            form.base_fields['primary_color'].widget.attrs.update({'type': 'color'})
-        if 'secondary_color' in form.base_fields:
-            form.base_fields['secondary_color'].widget.attrs.update({'type': 'color'})
-        if 'accent_color' in form.base_fields:
-            form.base_fields['accent_color'].widget.attrs.update({'type': 'color'})
-        return form
