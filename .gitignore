@@ -219,5 +219,5 @@ plataformarinno-*.json
 plataformarinno-534921b9e664.json
 
 # Migrations
-api/migrations
+api/migrations/*
 
