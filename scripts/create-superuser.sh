@@ -40,15 +40,28 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
+# Detectar si es producción o desarrollo
+if [ -f "docker-compose.prod.yml" ] && docker compose -f docker-compose.prod.yml ps | grep -q "web"; then
+    COMPOSE_FILE="docker-compose.prod.yml"
+    ENV_TYPE="PRODUCCIÓN"
+else
+    COMPOSE_FILE="docker-compose.yml"
+    ENV_TYPE="DESARROLLO"
+fi
+
 # Verificar que el contenedor web esté corriendo
 print_message "Verificando que el contenedor web esté corriendo..."
-if ! docker compose ps | grep -q "web.*running"; then
+if ! docker compose -f $COMPOSE_FILE ps | grep -q "web.*Up"; then
     print_error "El contenedor web no está corriendo."
-    print_message "Por favor ejecuta primero: ./start-local.sh"
+    if [ "$ENV_TYPE" = "PRODUCCIÓN" ]; then
+        print_message "Por favor ejecuta primero: ./quick-deploy.sh o ./start-prod"
+    else
+        print_message "Por favor ejecuta primero: ./start"
+    fi
     exit 1
 fi
 
-print_success "Contenedor web está corriendo ✓"
+print_success "Contenedor web está corriendo ✓ (${ENV_TYPE})"
 echo ""
 
 # Opción 1: Crear superusuario interactivo
@@ -66,7 +79,7 @@ case $REPLY in
     1)
         print_message "Creando superusuario interactivo..."
         echo ""
-        docker compose exec web python manage.py createsuperuser
+        docker compose -f $COMPOSE_FILE exec web python manage.py createsuperuser
         echo ""
         print_success "✨ Superusuario creado exitosamente ✨"
         ;;
@@ -79,7 +92,7 @@ case $REPLY in
         echo -e "${YELLOW}Password:${NC} admin"
         echo ""
         
-        docker compose exec -T web python manage.py shell << EOF
+        docker compose -f $COMPOSE_FILE exec -T web python manage.py shell << EOF
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
@@ -107,5 +120,9 @@ EOF
 esac
 
 echo ""
-print_message "Puedes acceder al admin de Django en: ${GREEN}http://localhost:8050/admin${NC}"
+if [ "$ENV_TYPE" = "PRODUCCIÓN" ]; then
+    print_message "Puedes acceder al admin de Django en: ${GREEN}https://catalogue.favric.cl/admin/${NC}"
+else
+    print_message "Puedes acceder al admin de Django en: ${GREEN}http://localhost:8050/admin${NC}"
+fi
 echo ""
