@@ -88,11 +88,17 @@ else
     echo -e "${GREEN}✅ Certificados SSL ya existen${NC}"
 fi
 
-# 8. Recargar Nginx
+# 8. Iniciar o recargar Nginx
 echo ""
-echo -e "${YELLOW}🔄 Recargando Nginx...${NC}"
-systemctl reload nginx
-echo -e "${GREEN}✅ Nginx recargado${NC}"
+if systemctl is-active --quiet nginx; then
+    echo -e "${YELLOW}🔄 Recargando Nginx...${NC}"
+    systemctl reload nginx
+    echo -e "${GREEN}✅ Nginx recargado${NC}"
+else
+    echo -e "${YELLOW}🚀 Iniciando Nginx...${NC}"
+    systemctl start nginx
+    echo -e "${GREEN}✅ Nginx iniciado${NC}"
+fi
 
 # 9. Habilitar Nginx al inicio
 echo ""
