@@ -5,6 +5,10 @@
 - **Producción**: `https://catalogue.favric.cl/api/`
 - **Local**: `http://localhost:8050/api/`
 
+## 📥 Probar con Insomnia
+
+**[📦 Descargar Colección de Insomnia](../Insomnia_Catalogue_API.json)** - Todos los endpoints listos para probar
+
 ---
 
 ## 🎯 Endpoints Principales

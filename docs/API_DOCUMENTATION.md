@@ -5,6 +5,25 @@
 
 Esta documentación está diseñada para facilitar la integración con aplicaciones Angular.
 
+## 📥 Colección de Insomnia
+
+Para probar la API fácilmente, descarga la colección de Insomnia:
+
+**📦 [Descargar Insomnia_Catalogue_API.json](../Insomnia_Catalogue_API.json)**
+
+### Cómo importar:
+1. Abre Insomnia
+2. Click en **Application** → **Preferences** → **Data** → **Import Data**
+3. Selecciona **From File**
+4. Elige el archivo `Insomnia_Catalogue_API.json`
+
+La colección incluye:
+- ✅ Todos los endpoints (Products, Categories, Brands, Slides, Client Config)
+- ✅ Environments (Production y Local)
+- ✅ Variables de entorno configuradas
+- ✅ Ejemplos de body para POST/PUT/PATCH
+- ✅ Query parameters pre-configurados
+
 ---
 
 ## 🔐 Autenticación

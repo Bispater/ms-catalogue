@@ -244,14 +244,19 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
     def get_client_configuration(self, obj):
         """Obtiene la configuración del cliente para este catálogo"""
         try:
+            # Buscar configuración específica del catálogo (no eliminada)
             config = ClientConfiguration.objects.filter(
                 catalogue=obj,
-                is_active=True
+                is_active=True,
+                is_removed=False
             ).first()
+            
             if config:
                 return ClientConfigurationSerializer(config, context=self.context).data
         except Exception as e:
+            import traceback
             print(f"Error obteniendo configuración: {e}")
+            print(traceback.format_exc())
         return None
     
     class Meta:
