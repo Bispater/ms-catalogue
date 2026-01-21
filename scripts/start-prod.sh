@@ -47,6 +47,20 @@ if [[ ! $REPLY =~ ^[Ss]$ ]]; then
     exit 0
 fi
 
+# 0. Actualizar código desde Git
+print_message "Actualizando código desde Git..."
+if git pull origin develop; then
+    print_success "Código actualizado ✓"
+else
+    print_warning "⚠️  No se pudo actualizar desde Git (puede que no haya cambios o no tengas permisos)"
+    read -p "¿Deseas continuar de todas formas? (s/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+        print_message "Operación cancelada"
+        exit 0
+    fi
+fi
+
 # 1. Verificar que Docker esté corriendo
 print_message "Verificando que Docker esté corriendo..."
 if ! docker info > /dev/null 2>&1; then
@@ -131,10 +145,22 @@ mkdir -p ./ssl
 mkdir -p ./backups
 print_success "Directorios creados ✓"
 
-# 7. Construir las imágenes
-print_message "Construyendo imágenes Docker para producción..."
-docker compose -f docker-compose.prod.yml build --no-cache
-print_success "Imágenes construidas ✓"
+# 7. Preguntar si hacer rebuild completo
+echo ""
+print_warning "¿Deseas hacer un rebuild completo de las imágenes? (s/n)"
+print_message "Esto es necesario si:"
+print_message "  - Cambiaste el Dockerfile"
+print_message "  - Agregaste nuevas dependencias en requirements.txt"
+print_message "  - Es la primera vez que despliegas"
+read -p "Rebuild completo? (s/n): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Ss]$ ]]; then
+    print_message "Construyendo imágenes Docker con --no-cache..."
+    docker compose -f docker-compose.prod.yml build --no-cache
+    print_success "Imágenes construidas ✓"
+else
+    print_message "Usando imágenes existentes (más rápido)"
+fi
 
 # 8. Levantar los servicios
 print_message "Levantando servicios de producción..."
