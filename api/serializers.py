@@ -178,10 +178,10 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientConfiguration
         fields = [
-            'id', 'name', 'organization_id', 'primary_color', 
+            'id', 'catalogue', 'name', 'primary_color', 
             'secondary_color', 'accent_color', 'logo', 'favicon',
-            'logo_url', 'favicon_url', 'domain', 'description', 
-            'is_active', 'created', 'modified'
+            'logo_url', 'favicon_url', 'domain', 'description',
+            'metadata', 'is_active', 'created', 'modified'
         ]
         read_only_fields = ['created', 'modified']
 
