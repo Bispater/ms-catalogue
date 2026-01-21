@@ -378,6 +378,18 @@ git pull origin develop
 docker compose -f docker-compose.prod.yml exec web python manage.py migrate
 ```
 
+# Extra
+# Local
+```bash
+docker compose exec web python manage.py collectstatic --noinput
+```
+
+# Produccion
+```bash
+docker compose -f docker-compose.prod.yml exec web python manage.py collectstatic --noinput
+
+```
+
 ---
 
 **Última actualización**: 2026-01-21  
