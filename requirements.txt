@@ -30,6 +30,3 @@ google-cloud-storage
 
 # Para procesamiento de videos
 opencv-python-headless==4.8.1.78
-
-# Para editor JSON en el admin
-django-jsoneditor==0.2.3
