@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.utils.translation import gettext_lazy as _
 from ckeditor_uploader.widgets import CKEditorUploadingWidget
+from json_editor.forms import JSONEditor
 from .models import Product, Category, ClientConfiguration
 
 
@@ -64,18 +65,6 @@ class ClientConfigurationForm(forms.ModelForm):
     """
     Formulario personalizado para ClientConfiguration con color picker y JSON editor.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Formatear JSON para mejor visualización
-        if self.instance and self.instance.metadata:
-            import json
-            try:
-                # Formatear JSON con indentación
-                formatted_json = json.dumps(self.instance.metadata, indent=2, ensure_ascii=False)
-                self.initial['metadata'] = formatted_json
-            except:
-                pass
-    
     class Meta:
         model = ClientConfiguration
         fields = '__all__'
@@ -83,10 +72,5 @@ class ClientConfigurationForm(forms.ModelForm):
             'primary_color': forms.TextInput(attrs={'type': 'color'}),
             'secondary_color': forms.TextInput(attrs={'type': 'color'}),
             'accent_color': forms.TextInput(attrs={'type': 'color'}),
-            'metadata': forms.Textarea(attrs={
-                'rows': 20,
-                'cols': 80,
-                'style': 'font-family: monospace; font-size: 12px;',
-                'class': 'vLargeTextField'
-            }),
+            'metadata': JSONEditor(),
         }

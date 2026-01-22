@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'drf_yasg',
+    'json_editor',
     
     # Local apps
     'api',
