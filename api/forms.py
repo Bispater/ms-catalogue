@@ -6,6 +6,27 @@ from .models import Product, Category, ClientConfiguration
 import json
 
 
+class PrettyJSONWidget(forms.Textarea):
+    """Widget personalizado para mostrar JSON formateado"""
+    
+    def format_value(self, value):
+        """Formatea el valor JSON para mostrarlo bonito"""
+        if value is None or value == '':
+            return ''
+        
+        try:
+            # Si es string, parsearlo
+            if isinstance(value, str):
+                obj = json.loads(value)
+            else:
+                obj = value
+            
+            # Formatear con indentación
+            return json.dumps(obj, indent=2, ensure_ascii=False, sort_keys=False)
+        except (ValueError, TypeError):
+            return value
+
+
 class ProductAdminForm(forms.ModelForm):
     """
     Formulario personalizado para el modelo Product en el admin.
@@ -65,17 +86,6 @@ class ClientConfigurationForm(forms.ModelForm):
     """
     Formulario personalizado para ClientConfiguration con color picker y JSON editor.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Formatear JSON para mejor visualización
-        if self.instance and self.instance.pk and self.instance.metadata:
-            try:
-                # Formatear JSON con indentación
-                formatted_json = json.dumps(self.instance.metadata, indent=2, ensure_ascii=False)
-                self.initial['metadata'] = formatted_json
-            except:
-                pass
-    
     class Meta:
         model = ClientConfiguration
         fields = '__all__'
@@ -83,7 +93,7 @@ class ClientConfigurationForm(forms.ModelForm):
             'primary_color': forms.TextInput(attrs={'type': 'color'}),
             'secondary_color': forms.TextInput(attrs={'type': 'color'}),
             'accent_color': forms.TextInput(attrs={'type': 'color'}),
-            'metadata': forms.Textarea(attrs={
+            'metadata': PrettyJSONWidget(attrs={
                 'rows': 25,
                 'cols': 100,
                 'style': 'font-family: "Courier New", monospace; font-size: 13px; line-height: 1.5;',
