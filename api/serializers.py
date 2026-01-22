@@ -195,6 +195,62 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'description', 'created_at', 'updated_at']
 
 
+class VideoSerializer(serializers.ModelSerializer):
+    """
+    Serializer para Video
+    """
+    file_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+    
+    def get_file_url(self, obj):
+        """Obtiene la URL completa del archivo de video"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+    
+    def get_thumbnail_url(self, obj):
+        """Obtiene la URL completa del thumbnail"""
+        if obj.thumbnail:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.thumbnail.url)
+            return obj.thumbnail.url
+        return None
+    
+    class Meta:
+        model = Video
+        fields = [
+            'id', 'name', 'description', 'file', 'file_url', 
+            'thumbnail', 'thumbnail_url', 'orientation', 'duration', 
+            'order', 'is_active', 'created', 'modified'
+        ]
+
+
+class PlaylistSerializer(serializers.ModelSerializer):
+    """
+    Serializer para Playlist con sus videos
+    """
+    videos = serializers.SerializerMethodField()
+    
+    def get_videos(self, obj):
+        """Obtiene videos activos ordenados"""
+        videos = obj.videos.filter(
+            is_active=True,
+            is_removed=False
+        ).order_by('order', 'name')
+        return VideoSerializer(videos, many=True, context=self.context).data
+    
+    class Meta:
+        model = Playlist
+        fields = [
+            'id', 'name', 'slug', 'description', 'duration', 
+            'is_active', 'videos', 'created', 'modified'
+        ]
+
+
 class CompleteCatalogueSerializer(serializers.ModelSerializer):
     """
     Serializer completo para Catalogue con todas sus relaciones
@@ -205,6 +261,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
     brands = serializers.SerializerMethodField()
     slides = serializers.SerializerMethodField()
     client_configuration = serializers.SerializerMethodField()
+    playlists = serializers.SerializerMethodField()
     
     def get_products(self, obj):
         """Obtiene todos los productos del catálogo (no eliminados, no variaciones)"""
@@ -259,10 +316,114 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             print(traceback.format_exc())
         return None
     
+    def get_playlists(self, obj):
+        """
+        Obtiene playlists vigentes del catálogo agrupadas por orientación
+        
+        Retorna:
+        {
+            "vertical": [
+                {
+                    "id": 1,
+                    "name": "Playlist Vertical 1",
+                    "videos": [...]
+                }
+            ],
+            "horizontal": [
+                {
+                    "id": 2,
+                    "name": "Playlist Horizontal 1",
+                    "videos": [...]
+                }
+            ]
+        }
+        """
+        from django.utils import timezone
+        from django.db.models import Q, Prefetch
+        
+        now = timezone.now()
+        
+        # Obtener CataloguePlaylist vigentes
+        catalogue_playlists = CataloguePlaylist.objects.filter(
+            catalogue=obj,
+            is_active=True,
+            is_removed=False
+        ).filter(
+            # Sin start_date O start_date <= now
+            Q(start_date__isnull=True) | Q(start_date__lte=now)
+        ).filter(
+            # Sin end_date O end_date > now
+            Q(end_date__isnull=True) | Q(end_date__gt=now)
+        ).select_related('playlist').prefetch_related(
+            Prefetch(
+                'playlist__videos',
+                queryset=Video.objects.filter(
+                    is_active=True,
+                    is_removed=False
+                ).order_by('order', 'name')
+            )
+        ).order_by('order', 'start_date')
+        
+        # Agrupar por orientación
+        result = {
+            'vertical': [],
+            'horizontal': []
+        }
+        
+        for cp in catalogue_playlists:
+            playlist = cp.playlist
+            if not playlist or not playlist.is_active:
+                continue
+            
+            # Obtener videos activos
+            videos = playlist.videos.filter(
+                is_active=True,
+                is_removed=False
+            ).order_by('order', 'name')
+            
+            if not videos.exists():
+                continue
+            
+            # Agrupar videos por orientación
+            vertical_videos = []
+            horizontal_videos = []
+            
+            for video in videos:
+                video_data = VideoSerializer(video, context=self.context).data
+                if video.orientation == 'vertical':
+                    vertical_videos.append(video_data)
+                else:
+                    horizontal_videos.append(video_data)
+            
+            # Agregar playlist a la categoría correspondiente si tiene videos
+            if vertical_videos:
+                result['vertical'].append({
+                    'id': playlist.id,
+                    'name': playlist.name,
+                    'slug': playlist.slug,
+                    'description': playlist.description,
+                    'duration': playlist.duration,
+                    'order': cp.order,
+                    'videos': vertical_videos
+                })
+            
+            if horizontal_videos:
+                result['horizontal'].append({
+                    'id': playlist.id,
+                    'name': playlist.name,
+                    'slug': playlist.slug,
+                    'description': playlist.description,
+                    'duration': playlist.duration,
+                    'order': cp.order,
+                    'videos': horizontal_videos
+                })
+        
+        return result
+    
     class Meta:
         model = Catalogue
         fields = [
             'id', 'name', 'code', 'slug', 'description', 'is_active',
             'created_at', 'updated_at', 'organization', 'products',
-            'categories', 'brands', 'slides', 'client_configuration'
+            'categories', 'brands', 'slides', 'client_configuration', 'playlists'
         ]

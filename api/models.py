@@ -98,6 +98,11 @@ CURRENCY = (
     ('PEN', 'Sol Peruano (PEN)'),
 )
 
+VIDEO_ORIENTATION = (
+    ('horizontal', _('Horizontal')),
+    ('vertical', _('Vertical')),
+)
+
 # Modelo base para la organización
 class OrganizationRelatedModel(models.Model):
     organization = models.ForeignKey(
@@ -1161,6 +1166,297 @@ class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
             if color_value and not color_value.startswith('#'):
                 setattr(self, color_field, f'#{color_value}')
         super().save(*args, **kwargs)
+
+
+# Modelo de Playlist
+class Playlist(BaseModel, OrganizationRelatedModel, TimeStampedModel, SoftDeletableModel):
+    """
+    Modelo para gestionar playlists de videos
+    """
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('is active'),
+        help_text="Indica si la playlist está activa"
+    )
+    duration = models.IntegerField(
+        default=0,
+        blank=True,
+        null=True,
+        verbose_name=_('duration'),
+        help_text="Duración total en segundos (calculado automáticamente)"
+    )
+    
+    class Meta:
+        verbose_name = _('playlist')
+        verbose_name_plural = _('playlists')
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.organization.name if self.organization else 'Sin organización'})"
+    
+    def calculate_duration(self):
+        """Calcula la duración total de la playlist sumando todos los videos"""
+        total = self.videos.aggregate(total_duration=models.Sum('duration'))['total_duration']
+        return total or 0
+    
+    def save(self, *args, **kwargs):
+        # Generar slug si no existe
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+
+# Modelo de Video
+class Video(OrganizationRelatedModel, TimeStampedModel, SoftDeletableModel):
+    """
+    Modelo para gestionar videos en playlists
+    """
+    playlist = models.ForeignKey(
+        Playlist,
+        on_delete=models.CASCADE,
+        related_name='videos',
+        verbose_name=_('playlist')
+    )
+    name = models.CharField(
+        max_length=250,
+        blank=True,
+        verbose_name=_('name'),
+        help_text="Si se deja vacío, se usará el nombre del archivo"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('description')
+    )
+    file = models.FileField(
+        upload_to=get_organization_image_path,
+        verbose_name=_('video file'),
+        validators=[FileExtensionValidator(
+            allowed_extensions=['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', 'm4v']
+        )],
+        help_text="Formatos soportados: MP4, AVI, MOV, WMV, FLV, MKV, WEBM, M4V"
+    )
+    thumbnail = models.ImageField(
+        upload_to=get_organization_image_path,
+        blank=True,
+        null=True,
+        verbose_name=_('thumbnail'),
+        help_text="Miniatura del video"
+    )
+    orientation = models.CharField(
+        max_length=20,
+        choices=VIDEO_ORIENTATION,
+        default='horizontal',
+        verbose_name=_('orientation'),
+        help_text="Orientación del video"
+    )
+    duration = models.IntegerField(
+        default=0,
+        blank=True,
+        null=True,
+        verbose_name=_('duration'),
+        help_text="Duración del video en segundos"
+    )
+    order = models.IntegerField(
+        default=0,
+        verbose_name=_('order'),
+        help_text="Orden del video en la playlist"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('is active'),
+        help_text="Indica si el video está activo"
+    )
+    
+    class Meta:
+        verbose_name = _('video')
+        verbose_name_plural = _('videos')
+        ordering = ['playlist', 'order', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.orientation})"
+    
+    def extract_video_metadata(self):
+        """
+        Extrae metadata del video: duración, orientación y genera thumbnail
+        Requiere: pip install opencv-python-headless pillow
+        """
+        if not self.file:
+            return
+        
+        try:
+            import cv2
+            from PIL import Image
+            from django.core.files.base import ContentFile
+            import tempfile
+            
+            # Guardar archivo temporalmente
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+                for chunk in self.file.chunks():
+                    tmp_file.write(chunk)
+                tmp_path = tmp_file.name
+            
+            # Abrir video con OpenCV
+            video = cv2.VideoCapture(tmp_path)
+            
+            # Obtener duración
+            fps = video.get(cv2.CAP_PROP_FPS)
+            frame_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+            if fps > 0:
+                self.duration = int(frame_count / fps)
+            
+            # Obtener dimensiones y orientación
+            width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.orientation = 'vertical' if height > width else 'horizontal'
+            
+            # Generar thumbnail del primer frame
+            if not self.thumbnail:
+                video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                success, frame = video.read()
+                if success:
+                    # Convertir BGR a RGB
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    
+                    # Crear imagen PIL
+                    img = Image.fromarray(frame_rgb)
+                    
+                    # Redimensionar manteniendo aspect ratio
+                    img.thumbnail((640, 480), Image.Resampling.LANCZOS)
+                    
+                    # Guardar en memoria
+                    import io
+                    thumb_io = io.BytesIO()
+                    img.save(thumb_io, format='JPEG', quality=85)
+                    thumb_io.seek(0)
+                    
+                    # Guardar como ImageField
+                    thumb_name = f"{self.name}_thumb.jpg"
+                    self.thumbnail.save(thumb_name, ContentFile(thumb_io.read()), save=False)
+            
+            video.release()
+            
+            # Limpiar archivo temporal
+            import os
+            os.unlink(tmp_path)
+            
+        except ImportError:
+            print("⚠️ opencv-python-headless no está instalado. Instalar con: pip install opencv-python-headless pillow")
+        except Exception as e:
+            print(f"⚠️ Error extrayendo metadata del video: {e}")
+    
+    def save(self, *args, **kwargs):
+        # Heredar organización de la playlist si no está definida
+        if not self.organization and self.playlist:
+            self.organization = self.playlist.organization
+        
+        # Si no tiene nombre y tiene archivo, usar el nombre del archivo
+        if not self.name and self.file:
+            import os
+            # Obtener nombre del archivo sin extensión
+            filename = os.path.basename(self.file.name)
+            self.name = os.path.splitext(filename)[0]
+            # Reemplazar guiones bajos y guiones por espacios
+            self.name = self.name.replace('_', ' ').replace('-', ' ')
+            # Capitalizar primera letra de cada palabra
+            self.name = self.name.title()
+        
+        # Si es nuevo y tiene archivo, extraer metadata
+        is_new = self.pk is None
+        if is_new and self.file:
+            # Guardar primero para tener el archivo en disco
+            super().save(*args, **kwargs)
+            # Extraer metadata
+            self.extract_video_metadata()
+            # Guardar de nuevo con metadata
+            super().save(update_fields=['duration', 'orientation', 'thumbnail'])
+        else:
+            super().save(*args, **kwargs)
+
+
+# Modelo de Asociación Catalogue-Playlist
+class CataloguePlaylist(TimeStampedModel, SoftDeletableModel):
+    """
+    Modelo para asociar playlists a catálogos con fechas de vigencia
+    """
+    catalogue = models.ForeignKey(
+        Catalogue,
+        on_delete=models.CASCADE,
+        related_name='catalogue_playlists',
+        verbose_name=_('catalogue')
+    )
+    playlist = models.ForeignKey(
+        Playlist,
+        on_delete=models.CASCADE,
+        related_name='catalogue_assignments',
+        verbose_name=_('playlist')
+    )
+    start_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('start date'),
+        help_text="Fecha y hora de inicio de vigencia (opcional, vigente desde ahora si está vacío)"
+    )
+    end_date = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('end date'),
+        help_text="Fecha y hora de fin de vigencia (opcional, sin fin si está vacío)"
+    )
+    order = models.IntegerField(
+        default=0,
+        verbose_name=_('order'),
+        help_text="Orden de reproducción en el catálogo"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_('is active'),
+        help_text="Indica si la asignación está activa"
+    )
+    
+    class Meta:
+        verbose_name = _('catalogue playlist')
+        verbose_name_plural = _('catalogue playlists')
+        ordering = ['catalogue', 'order', 'start_date']
+        unique_together = [['catalogue', 'playlist', 'start_date']]
+    
+    def __str__(self):
+        date_str = self.start_date.strftime('%Y-%m-%d') if self.start_date else 'Indefinido'
+        return f"{self.catalogue.name} - {self.playlist.name} ({date_str})"
+    
+    def is_current(self):
+        """
+        Verifica si la asignación está vigente en este momento.
+        
+        Lógica:
+        - Si no tiene start_date: vigente desde ahora (indefinido hacia atrás)
+        - Si tiene start_date: debe ser <= ahora
+        - Si no tiene end_date: vigente indefinidamente (sin fin)
+        - Si tiene end_date: debe ser > ahora
+        """
+        from django.utils import timezone
+        now = timezone.now()
+        
+        if not self.is_active:
+            return False
+        
+        # Si tiene fecha de inicio, verificar que ya haya comenzado
+        if self.start_date and self.start_date > now:
+            return False
+        
+        # Si tiene fecha de fin, verificar que no haya terminado
+        if self.end_date and self.end_date < now:
+            return False
+        
+        return True
+    
+    def save(self, *args, **kwargs):
+        # Validar que end_date sea posterior a start_date (solo si ambos existen)
+        if self.start_date and self.end_date and self.end_date <= self.start_date:
+            from django.core.exceptions import ValidationError
+            raise ValidationError("La fecha de fin debe ser posterior a la fecha de inicio")
+        super().save(*args, **kwargs)
+
 
 # Señales
 @receiver(post_save, sender=Product)

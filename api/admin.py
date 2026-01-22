@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration
+from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration, Playlist, Video, CataloguePlaylist
 from .forms import ProductAdminForm, MyModelForm, ClientConfigurationForm
 
 class MetaDataInline(admin.StackedInline):
@@ -99,6 +99,14 @@ class ClientConfigurationInline(admin.StackedInline):
     )
 
 
+# Inline para CataloguePlaylist en Catalogue
+class CataloguePlaylistInline(admin.TabularInline):
+    model = CataloguePlaylist
+    extra = 1
+    fields = ['playlist', 'start_date', 'end_date', 'order', 'is_active']
+    readonly_fields = []
+
+
 @admin.register(Catalogue)
 class CatalogueAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'organization', 'currency', 'is_active', 'created_at')
@@ -107,7 +115,7 @@ class CatalogueAdmin(admin.ModelAdmin):
     list_editable = ('is_active',)
     prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ('created_at', 'updated_at')
-    inlines = [ClientConfigurationInline]
+    inlines = [ClientConfigurationInline, CataloguePlaylistInline]
     fieldsets = (
         ('Información Básica', {
             'fields': ('name', 'code', 'slug', 'organization', 'description', 'currency', 'is_active')
@@ -153,3 +161,108 @@ class ClientConfigurationAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         })
     )
+
+
+# Inline para Videos en Playlist
+class VideoInline(admin.StackedInline):
+    model = Video
+    extra = 1
+    fields = ['name', 'description', 'file', 'thumbnail', 'orientation', 'duration', 'order', 'is_active']
+    readonly_fields = ['thumbnail', 'orientation', 'duration']
+    classes = ['collapse']
+
+
+@admin.register(Playlist)
+class PlaylistAdmin(admin.ModelAdmin):
+    list_display = ['name', 'organization', 'duration', 'is_active', 'created']
+    list_filter = ['organization', 'is_active', 'created']
+    search_fields = ['name', 'description', 'slug']  # Para autocomplete
+    list_editable = ['is_active']
+    readonly_fields = ('created', 'modified', 'duration')
+    inlines = [VideoInline]
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('organization', 'name', 'slug', 'description', 'tags')
+        }),
+        ('Configuración', {
+            'fields': ('is_active', 'duration', 'state')
+        }),
+        ('Imágenes', {
+            'fields': ('image', 'images'),
+            'classes': ('collapse',)
+        }),
+        ('Fechas', {
+            'fields': ('created', 'modified'),
+            'classes': ('collapse',)
+        })
+    )
+    prepopulated_fields = {'slug': ('name',)}
+    
+    def save_model(self, request, obj, form, change):
+        """Calcular duración al guardar"""
+        super().save_model(request, obj, form, change)
+        obj.duration = obj.calculate_duration()
+        obj.save(update_fields=['duration'])
+
+
+@admin.register(Video)
+class VideoAdmin(admin.ModelAdmin):
+    list_display = ['name', 'playlist', 'organization', 'orientation', 'duration', 'order', 'is_active', 'created']
+    list_filter = ['playlist', 'organization', 'orientation', 'is_active', 'created']
+    search_fields = ['name', 'description']
+    list_editable = ['order', 'is_active']
+    readonly_fields = ('created', 'modified')
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('playlist', 'organization', 'name', 'description')
+        }),
+        ('Archivo de Video', {
+            'fields': ('file', 'thumbnail', 'orientation', 'duration')
+        }),
+        ('Configuración', {
+            'fields': ('order', 'is_active')
+        }),
+        ('Fechas', {
+            'fields': ('created', 'modified'),
+            'classes': ('collapse',)
+        })
+    )
+
+
+@admin.register(CataloguePlaylist)
+class CataloguePlaylistAdmin(admin.ModelAdmin):
+    list_display = ['catalogue', 'playlist', 'start_date', 'end_date', 'order', 'is_active', 'is_current_status']
+    list_filter = ['catalogue', 'is_active', 'start_date', 'end_date']
+    search_fields = ['catalogue__name', 'playlist__name']
+    list_editable = ['order', 'is_active']
+    readonly_fields = ('created', 'modified', 'is_current_status')
+    date_hierarchy = 'start_date'
+    autocomplete_fields = ['catalogue', 'playlist']
+    
+    fieldsets = (
+        ('Asociación', {
+            'fields': ('catalogue', 'playlist')
+        }),
+        ('Vigencia', {
+            'fields': ('start_date', 'end_date', 'is_current_status')
+        }),
+        ('Configuración', {
+            'fields': ('order', 'is_active')
+        }),
+        ('Fechas', {
+            'fields': ('created', 'modified'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def is_current_status(self, obj):
+        """Muestra si la asignación está vigente actualmente"""
+        if not obj.pk:
+            return "-"  # Objeto nuevo, aún no guardado
+        try:
+            if obj.is_current():
+                return "✅ Vigente"
+            return "❌ No vigente"
+        except:
+            return "-"
+    is_current_status.short_description = "Estado actual"
