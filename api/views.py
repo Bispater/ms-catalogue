@@ -48,7 +48,7 @@ class SlideFilter(django_filters.FilterSet):
 # Vista de ejemplo protegida por JWT
 class ExampleView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request, format=None):
         content = {
             'status': 'request was permitted',
@@ -121,9 +121,9 @@ class ProductView(generics.ListAPIView):
 class CompleteCatalogueView(APIView):
     """
     Vista para obtener toda la información de un catálogo por su código
-    
+
     GET /api/catalogue/<code>/
-    
+
     Retorna:
     - Información del catálogo
     - Información de la organización
@@ -133,7 +133,7 @@ class CompleteCatalogueView(APIView):
     - Todos los slides del catálogo
     - Configuración del cliente
     """
-    
+
     def get(self, request, code):
         try:
             # Buscar catálogo por code
@@ -141,7 +141,7 @@ class CompleteCatalogueView(APIView):
                 code=code,
                 is_active=True
             ).first()
-            
+
             if not catalogue:
                 return Response(
                     {
@@ -150,12 +150,12 @@ class CompleteCatalogueView(APIView):
                     },
                     status=status.HTTP_404_NOT_FOUND
                 )
-            
+
             # Serializar con toda la información
             serializer = CompleteCatalogueSerializer(catalogue, context={'request': request})
-            
+
             return Response(serializer.data, status=status.HTTP_200_OK)
-            
+
         except Exception as e:
             return Response(
                 {
@@ -174,7 +174,7 @@ class ClientConfigurationViewSet(viewsets.ModelViewSet):
     serializer_class = ClientConfigurationSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['name', 'domain', 'description']
-    filterset_fields = ['is_active', 'catalogue', 'organization_id']  # organization_id es legacy
+    filterset_fields = ['is_active', 'catalogue']  # organization_id fue eliminado
     lookup_field = 'name'  # Permite buscar por nombre en lugar de ID
 
 
@@ -195,7 +195,7 @@ class ClientConfigurationByNameView(generics.RetrieveAPIView):
         client_name = self.kwargs.get('client_name')
         try:
             return ClientConfiguration.objects.get(
-                name__iexact=client_name, 
+                name__iexact=client_name,
                 is_active=True
             )
         except ClientConfiguration.DoesNotExist:
@@ -220,7 +220,7 @@ class ClientConfigurationByDomainView(generics.RetrieveAPIView):
         domain = self.kwargs.get('domain')
         try:
             return ClientConfiguration.objects.get(
-                domain__iexact=domain, 
+                domain__iexact=domain,
                 is_active=True
             )
         except ClientConfiguration.DoesNotExist:

@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # Third-party apps
     'corsheaders',
     'rest_framework',
@@ -70,7 +70,7 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'drf_yasg',
-    
+
     # Local apps
     'api',
 
@@ -247,12 +247,23 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:4200",  # Angular dev server
-    "http://127.0.0.1:4200",
-    "http://localhost:3000",  # React/Next.js dev server (si usas)
-    "http://127.0.0.1:3000",
-]
+# Usar variables de entorno si están disponibles, sino valores por defecto para desarrollo
+cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', '')
+if cors_origins:
+    CORS_ALLOWED_ORIGINS = cors_origins.split(',')
+else:
+    # Valores por defecto para desarrollo
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:4200",  # Angular dev server
+        "http://127.0.0.1:4200",
+        "http://localhost:3000",  # React/Next.js dev server (si usas)
+        "http://127.0.0.1:3000",
+    ]
+
+# Configuración de CORS desde variables de entorno
+CORS_ALLOW_CREDENTIALS = os.getenv('CORS_ALLOW_CREDENTIALS', 'True').lower() in ['1', 't', 'true', 'y', 'yes']
+CORS_ALLOW_HEADERS = os.getenv('CORS_ALLOW_HEADERS', 'accept,accept-encoding,authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,cache-control').split(',')
+CORS_ALLOW_METHODS = os.getenv('CORS_ALLOW_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS').split(',')
 
 # En desarrollo, permite todos los orígenes (menos seguro pero más fácil)
 # if DEBUG:
@@ -277,15 +288,15 @@ if not DEBUG:  # Solo en producción
     GS_BUCKET_NAME = os.getenv('GS_BUCKET_NAME', 'rinnomanager-media_storage')
     GS_PROJECT_ID = os.getenv('GS_PROJECT_ID', 'plataformarinno')
     GS_LOCATION = os.getenv('GS_LOCATION', 'ms_catalogue')
-    
+
     # Configuración de credenciales
     GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-    
+
     # Configuración de django-storages para Google Cloud Storage
     DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
     GS_DEFAULT_ACL = 'publicRead'  # Para que las imágenes sean públicas
     GS_BLOB_STORAGE_PATH = ''  # Evita que se incluya la región en el path
-    
+
     # URLs para archivos media
     MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/'
 else:
