@@ -98,6 +98,15 @@ class SlideViewSet(viewsets.ModelViewSet):
     ordering = ['order', 'name']
 
 
+class OrganizationViewSet(viewsets.ModelViewSet):
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    search_fields = ['name', 'slug', 'description']
+    ordering_fields = ['name', 'created']
+    ordering = ['name']
+
+
 class NumberInFilter(django_filters.BaseInFilter, django_filters.NumberFilter):
     pass
 
@@ -116,6 +125,41 @@ class ProductView(generics.ListAPIView):
     filter_backends = (filters.SearchFilter, filters.OrderingFilter, django_filters.rest_framework.DjangoFilterBackend)
     search_fields = ('name', 'sku', 'slug', 'description', 'id', 'categories__name', 'brand__name')
     filter_class = ProductFilter
+
+
+class CatalogueListView(generics.ListAPIView):
+    queryset = Catalogue.objects.all().select_related('organization')
+    serializer_class = CatalogueListSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    search_fields = ['name', 'code', 'slug', 'description', 'organization__name', 'organization__slug']
+    ordering_fields = ['name', 'code', 'created_at', 'updated_at']
+    ordering = ['name']
+
+    def get_serializer_class(self):
+        full = self.request.query_params.get('full', 'false').lower() in ['1', 't', 'true', 'y', 'yes']
+        if full:
+            return CompleteCatalogueSerializer
+        return CatalogueListSerializer
+
+
+class PlaylistViewSet(viewsets.ModelViewSet):
+    queryset = Playlist.objects.filter(is_removed=False).select_related('organization')
+    serializer_class = PlaylistSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    search_fields = ['name', 'slug', 'description']
+    filterset_fields = ['is_active', 'organization']
+    ordering_fields = ['name', 'created', 'modified']
+    ordering = ['name']
+
+
+class VideoViewSet(viewsets.ModelViewSet):
+    queryset = Video.objects.filter(is_removed=False).select_related('playlist', 'organization')
+    serializer_class = VideoSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    search_fields = ['name', 'description']
+    filterset_fields = ['is_active', 'orientation', 'playlist', 'organization']
+    ordering_fields = ['order', 'name', 'created', 'modified']
+    ordering = ['playlist', 'order', 'name']
 
 
 class CompleteCatalogueView(APIView):

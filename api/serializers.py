@@ -87,20 +87,20 @@ class BrandSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     tags_list = serializers.SerializerMethodField()
-    
+
     def get_tags_list(self, obj):
         """Retorna las tags como lista"""
         return obj.get_tags_list()
-    
+
     def to_representation(self, instance):
         self.fields['variations'] = serializers.SerializerMethodField()
         self.fields['brand'] = BrandSerializer()
         self.fields['images'] = ImagesSerializer(many=True)
         self.fields['categories'] = serializers.SerializerMethodField()
-        
+
         # Obtener representación base
         data = super(ProductSerializer, self).to_representation(instance)
-        
+
         # Formatear precios según la moneda del catálogo
         # Determinar la moneda a usar
         currency = None
@@ -112,17 +112,17 @@ class ProductSerializer(serializers.ModelSerializer):
         else:
             # Por defecto usar CLP
             currency = 'CLP'
-        
+
         # Formatear precios usando CurrencyFormatter
         if 'price_1' in data and data['price_1']:
             data['price_1_formatted'] = CurrencyFormatter.format(data['price_1'], currency)
         if 'price_2' in data and data['price_2']:
             data['price_2_formatted'] = CurrencyFormatter.format(data['price_2'], currency)
-        
+
         # Agregar información de moneda
         data['currency'] = currency
         data['currency_info'] = CurrencyFormatter.get_currency_info(currency)
-        
+
         return data
 
     def get_variations(self, obj):
@@ -156,7 +156,7 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
     """
     logo_url = serializers.SerializerMethodField()
     favicon_url = serializers.SerializerMethodField()
-    
+
     def get_logo_url(self, obj):
         """Obtiene la URL completa del logo"""
         if obj.logo:
@@ -165,7 +165,7 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.logo.url)
             return obj.logo.url
         return None
-    
+
     def get_favicon_url(self, obj):
         """Obtiene la URL completa del favicon"""
         if obj.favicon:
@@ -178,7 +178,7 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientConfiguration
         fields = [
-            'id', 'catalogue', 'name', 'primary_color', 
+            'id', 'catalogue', 'name', 'primary_color',
             'secondary_color', 'accent_color', 'logo', 'favicon',
             'logo_url', 'favicon_url', 'domain', 'description',
             'metadata', 'is_active', 'created', 'modified'
@@ -195,13 +195,24 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'slug', 'description', 'created_at', 'updated_at']
 
 
+class CatalogueListSerializer(serializers.ModelSerializer):
+    organization = OrganizationSerializer(read_only=True)
+
+    class Meta:
+        model = Catalogue
+        fields = [
+            'id', 'name', 'code', 'slug', 'description',
+            'is_active', 'created_at', 'updated_at', 'organization'
+        ]
+
+
 class VideoSerializer(serializers.ModelSerializer):
     """
     Serializer para Video
     """
     file_url = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
-    
+
     def get_file_url(self, obj):
         """Obtiene la URL completa del archivo de video"""
         if obj.file:
@@ -210,7 +221,7 @@ class VideoSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.file.url)
             return obj.file.url
         return None
-    
+
     def get_thumbnail_url(self, obj):
         """Obtiene la URL completa del thumbnail"""
         if obj.thumbnail:
@@ -219,12 +230,12 @@ class VideoSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.thumbnail.url)
             return obj.thumbnail.url
         return None
-    
+
     class Meta:
         model = Video
         fields = [
-            'id', 'name', 'description', 'file', 'file_url', 
-            'thumbnail', 'thumbnail_url', 'orientation', 'duration', 
+            'id', 'name', 'description', 'file', 'file_url',
+            'thumbnail', 'thumbnail_url', 'orientation', 'duration',
             'order', 'is_active', 'created', 'modified'
         ]
 
@@ -234,7 +245,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
     Serializer para Playlist con sus videos
     """
     videos = serializers.SerializerMethodField()
-    
+
     def get_videos(self, obj):
         """Obtiene videos activos ordenados"""
         videos = obj.videos.filter(
@@ -242,11 +253,11 @@ class PlaylistSerializer(serializers.ModelSerializer):
             is_removed=False
         ).order_by('order', 'name')
         return VideoSerializer(videos, many=True, context=self.context).data
-    
+
     class Meta:
         model = Playlist
         fields = [
-            'id', 'name', 'slug', 'description', 'duration', 
+            'id', 'name', 'slug', 'description', 'duration',
             'is_active', 'videos', 'created', 'modified'
         ]
 
@@ -262,7 +273,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
     slides = serializers.SerializerMethodField()
     client_configuration = serializers.SerializerMethodField()
     playlists = serializers.SerializerMethodField()
-    
+
     def get_products(self, obj):
         """Obtiene todos los productos del catálogo (no eliminados, no variaciones)"""
         products = Product.objects.filter(
@@ -272,7 +283,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             virtual=False
         ).select_related('brand').prefetch_related('categories', 'images')
         return ProductSerializer(products, many=True, context=self.context).data
-    
+
     def get_categories(self, obj):
         """Obtiene todas las categorías de la organización"""
         categories = Category.objects.filter(
@@ -280,7 +291,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             virtual=False
         ).select_related('parent')
         return CategorySerializer(categories, many=True, context=self.context).data
-    
+
     def get_brands(self, obj):
         """Obtiene todas las marcas de la organización"""
         brands = Brand.objects.filter(
@@ -288,7 +299,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             virtual=False
         ).select_related('parent')
         return BrandSerializer(brands, many=True, context=self.context).data
-    
+
     def get_slides(self, obj):
         """Obtiene todos los slides del catálogo"""
         slides = Slide.objects.filter(
@@ -297,7 +308,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             state='publish'
         )
         return SlideSerializer(slides, many=True, context=self.context).data
-    
+
     def get_client_configuration(self, obj):
         """Obtiene la configuración del cliente para este catálogo"""
         try:
@@ -307,7 +318,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
                 is_active=True,
                 is_removed=False
             ).first()
-            
+
             if config:
                 return ClientConfigurationSerializer(config, context=self.context).data
         except Exception as e:
@@ -315,11 +326,11 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             print(f"Error obteniendo configuración: {e}")
             print(traceback.format_exc())
         return None
-    
+
     def get_playlists(self, obj):
         """
         Obtiene playlists vigentes del catálogo agrupadas por orientación
-        
+
         Retorna:
         {
             "vertical": [
@@ -340,9 +351,9 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
         """
         from django.utils import timezone
         from django.db.models import Q, Prefetch
-        
+
         now = timezone.now()
-        
+
         # Obtener CataloguePlaylist vigentes
         catalogue_playlists = CataloguePlaylist.objects.filter(
             catalogue=obj,
@@ -363,38 +374,38 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
                 ).order_by('order', 'name')
             )
         ).order_by('order', 'start_date')
-        
+
         # Agrupar por orientación
         result = {
             'vertical': [],
             'horizontal': []
         }
-        
+
         for cp in catalogue_playlists:
             playlist = cp.playlist
             if not playlist or not playlist.is_active:
                 continue
-            
+
             # Obtener videos activos
             videos = playlist.videos.filter(
                 is_active=True,
                 is_removed=False
             ).order_by('order', 'name')
-            
+
             if not videos.exists():
                 continue
-            
+
             # Agrupar videos por orientación
             vertical_videos = []
             horizontal_videos = []
-            
+
             for video in videos:
                 video_data = VideoSerializer(video, context=self.context).data
                 if video.orientation == 'vertical':
                     vertical_videos.append(video_data)
                 else:
                     horizontal_videos.append(video_data)
-            
+
             # Agregar playlist a la categoría correspondiente si tiene videos
             if vertical_videos:
                 result['vertical'].append({
@@ -406,7 +417,7 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
                     'order': cp.order,
                     'videos': vertical_videos
                 })
-            
+
             if horizontal_videos:
                 result['horizontal'].append({
                     'id': playlist.id,
@@ -417,9 +428,9 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
                     'order': cp.order,
                     'videos': horizontal_videos
                 })
-        
+
         return result
-    
+
     class Meta:
         model = Catalogue
         fields = [
