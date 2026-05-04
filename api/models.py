@@ -1517,3 +1517,211 @@ def handle_import_file(sender, instance=None, created=False, **kwargs):
         # En producción, aquí podrías llamar a una tarea Celery
         # from .tasks import process_import_file
         # process_import_file.delay(instance.id)
+
+
+# ==================== Órdenes / Ventas ====================
+
+ORDER_STATUS = [
+    ('pending', 'Pending'),
+    ('approved', 'Approved'),
+    ('rejected', 'Rejected'),
+    ('voided', 'Voided'),
+    ('failed', 'Failed'),
+]
+
+CARD_TYPE = [
+    ('CR', 'Credit'),
+    ('DB', 'Debit'),
+    ('PR', 'Prepaid'),
+]
+
+
+class Order(TimeStampedModel, SoftDeletableModel):
+    """
+    Venta generada en un totem. La transacción del POS Transbank IM30
+    aporta los campos identificadores; la tupla
+    (terminal_id, operation_number, accounting_date) actúa como external_transaction_id
+    y se usa para idempotencia.
+    """
+    catalogue = models.ForeignKey(
+        'Catalogue',
+        on_delete=models.PROTECT,
+        related_name='orders',
+        verbose_name=_('catalogue'))
+
+    # Identidad de la transacción
+    external_transaction_id = models.CharField(
+        max_length=120,
+        unique=True,
+        verbose_name=_('external transaction id'),
+        help_text='`{terminal_id}-{operation_number}-{accounting_date}` u otro identificador único provisto por el cliente.')
+    local_order_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name=_('local order number'),
+        help_text='Número impreso en el voucher (ej. 4 dígitos).')
+
+    # Estado
+    status = models.CharField(
+        max_length=20,
+        choices=ORDER_STATUS,
+        default='approved',
+        verbose_name=_('status'))
+
+    # Totales
+    currency = models.CharField(
+        max_length=10,
+        choices=CURRENCY,
+        default='CLP',
+        verbose_name=_('currency'))
+    subtotal = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name=_('subtotal'))
+    total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name=_('total'))
+
+    # Datos Transbank
+    authorization_code = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        verbose_name=_('authorization code'),
+        help_text='Código de autorización Transbank (impreso en el voucher).')
+    operation_number = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('operation number'))
+    terminal_id = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('terminal id'))
+    commerce_code = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('commerce code'))
+    card_type = models.CharField(
+        max_length=2,
+        choices=CARD_TYPE,
+        blank=True,
+        null=True,
+        verbose_name=_('card type'))
+    card_brand = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('card brand'))
+    last_4_digits = models.CharField(
+        max_length=4,
+        blank=True,
+        null=True,
+        verbose_name=_('last 4 digits'))
+    accounting_date = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name=_('accounting date'),
+        help_text='Fecha contable Transbank (formato MMDD o YYYYMMDD según el POS).')
+    real_date = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name=_('real date'))
+    real_time = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name=_('real time'))
+    response_code = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        verbose_name=_('response code'))
+    response_message = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('response message'))
+    ticket = models.CharField(
+        max_length=60,
+        blank=True,
+        null=True,
+        verbose_name=_('ticket'),
+        help_text='Identificador del ticket que el totem envió al POS al iniciar la venta.')
+
+    # Auditoría
+    raw_response = models.JSONField(
+        blank=True,
+        null=True,
+        verbose_name=_('raw response'),
+        help_text='Respuesta completa del POS, guardada para depuración / conciliación.')
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('notes'))
+
+    class Meta:
+        verbose_name = _('order')
+        verbose_name_plural = _('orders')
+        ordering = ['-created']
+        indexes = [
+            models.Index(fields=['catalogue', '-created']),
+            models.Index(fields=['authorization_code']),
+            models.Index(fields=['terminal_id', 'accounting_date']),
+        ]
+
+    def __str__(self):
+        ref = self.local_order_number or self.authorization_code or str(self.id)
+        return f'Order #{ref} ({self.total} {self.currency})'
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name=_('order'))
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        related_name='order_items',
+        null=True,
+        blank=True,
+        verbose_name=_('product'))
+
+    # Snapshot del producto al momento de la venta — protege ante cambios
+    # posteriores en el catálogo (rename, eliminación, cambio de precio).
+    name_snapshot = models.CharField(
+        max_length=250,
+        verbose_name=_('product name snapshot'))
+    sku_snapshot = models.CharField(
+        max_length=250,
+        blank=True,
+        null=True,
+        verbose_name=_('sku snapshot'))
+
+    quantity = models.PositiveIntegerField(
+        default=1,
+        verbose_name=_('quantity'))
+    unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name=_('unit price'))
+    line_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name=_('line total'))
+
+    class Meta:
+        verbose_name = _('order item')
+        verbose_name_plural = _('order items')
+        ordering = ['id']
+
+    def __str__(self):
+        return f'{self.quantity}x {self.name_snapshot}'

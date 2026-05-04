@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration, Playlist, Video, CataloguePlaylist
+from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration, Playlist, Video, CataloguePlaylist, Order, OrderItem
 from .forms import ProductAdminForm, MyModelForm, ClientConfigurationForm
 
 class MetaDataInline(admin.StackedInline):
@@ -266,3 +266,57 @@ class CataloguePlaylistAdmin(admin.ModelAdmin):
         except:
             return "-"
     is_current_status.short_description = "Estado actual"
+
+
+# ==================== Órdenes / Ventas ====================
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+    fields = ['product', 'name_snapshot', 'sku_snapshot', 'quantity', 'unit_price', 'line_total']
+    readonly_fields = ['name_snapshot', 'sku_snapshot', 'quantity', 'unit_price', 'line_total']
+    can_delete = False
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = (
+        'created', 'local_order_number', 'catalogue',
+        'authorization_code', 'card_brand', 'last_4_digits',
+        'total', 'currency', 'status',
+    )
+    list_filter = (
+        'status', 'currency', 'card_type', 'card_brand',
+        'catalogue', 'catalogue__organization',
+        'created',
+    )
+    search_fields = (
+        'external_transaction_id', 'authorization_code', 'local_order_number',
+        'ticket', 'terminal_id', 'last_4_digits',
+    )
+    readonly_fields = (
+        'created', 'modified', 'is_removed',
+        'external_transaction_id', 'raw_response',
+    )
+    date_hierarchy = 'created'
+    inlines = [OrderItemInline]
+    fieldsets = (
+        ('Identidad', {
+            'fields': ('catalogue', 'external_transaction_id', 'local_order_number', 'status'),
+        }),
+        ('Totales', {
+            'fields': ('currency', 'subtotal', 'total'),
+        }),
+        ('Transbank', {
+            'fields': (
+                'authorization_code', 'operation_number', 'terminal_id', 'commerce_code',
+                'card_type', 'card_brand', 'last_4_digits',
+                'accounting_date', 'real_date', 'real_time',
+                'response_code', 'response_message', 'ticket',
+            ),
+        }),
+        ('Auditoría', {
+            'fields': ('raw_response', 'notes', 'created', 'modified', 'is_removed'),
+            'classes': ('collapse',),
+        }),
+    )

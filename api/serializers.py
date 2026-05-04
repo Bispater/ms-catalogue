@@ -438,3 +438,115 @@ class CompleteCatalogueSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'organization', 'products',
             'categories', 'brands', 'slides', 'client_configuration', 'playlists'
         ]
+
+
+# ==================== Órdenes / Ventas ====================
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItem
+        fields = [
+            'id', 'product', 'name_snapshot', 'sku_snapshot',
+            'quantity', 'unit_price', 'line_total'
+        ]
+
+
+class OrderItemWriteSerializer(serializers.Serializer):
+    """Item recibido desde el totem al crear la orden."""
+    product_id = serializers.IntegerField(required=False, allow_null=True)
+    name = serializers.CharField(max_length=250)
+    sku = serializers.CharField(max_length=250, required=False, allow_blank=True, allow_null=True)
+    quantity = serializers.IntegerField(min_value=1)
+    unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    """Lectura de Order — incluye items embebidos y un cache liviano del catálogo."""
+    items = OrderItemSerializer(many=True, read_only=True)
+    catalogue_code = serializers.CharField(source='catalogue.code', read_only=True)
+    catalogue_name = serializers.CharField(source='catalogue.name', read_only=True)
+    organization_name = serializers.CharField(source='catalogue.organization.name', read_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'catalogue', 'catalogue_code', 'catalogue_name', 'organization_name',
+            'external_transaction_id', 'local_order_number', 'status',
+            'currency', 'subtotal', 'total',
+            'authorization_code', 'operation_number', 'terminal_id', 'commerce_code',
+            'card_type', 'card_brand', 'last_4_digits',
+            'accounting_date', 'real_date', 'real_time',
+            'response_code', 'response_message', 'ticket',
+            'raw_response', 'notes',
+            'items',
+            'created', 'modified', 'is_removed',
+        ]
+        read_only_fields = ['created', 'modified', 'is_removed']
+
+
+class OrderCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer de escritura usado por el totem.
+    Acepta `catalogue_code` para resolver el catálogo por código (más cómodo
+    que pasar el ID) e `items[]` con snapshot de productos.
+    """
+    catalogue_code = serializers.CharField(write_only=True, required=False)
+    items = OrderItemWriteSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Order
+        fields = [
+            'catalogue', 'catalogue_code',
+            'external_transaction_id', 'local_order_number', 'status',
+            'currency', 'subtotal', 'total',
+            'authorization_code', 'operation_number', 'terminal_id', 'commerce_code',
+            'card_type', 'card_brand', 'last_4_digits',
+            'accounting_date', 'real_date', 'real_time',
+            'response_code', 'response_message', 'ticket',
+            'raw_response', 'notes',
+            'items',
+        ]
+        extra_kwargs = {
+            'catalogue': {'required': False, 'allow_null': True},
+            'status': {'required': False},
+        }
+
+    def validate(self, attrs):
+        # Resolver catalogue desde catalogue_code si llega
+        catalogue = attrs.get('catalogue')
+        catalogue_code = attrs.pop('catalogue_code', None)
+        if not catalogue and catalogue_code:
+            try:
+                attrs['catalogue'] = Catalogue.objects.get(code=catalogue_code)
+            except Catalogue.DoesNotExist:
+                raise serializers.ValidationError({
+                    'catalogue_code': f'No existe catálogo con código {catalogue_code}'
+                })
+        if not attrs.get('catalogue'):
+            raise serializers.ValidationError({
+                'catalogue': 'Debe enviar catalogue (id) o catalogue_code.'
+            })
+        return attrs
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items')
+        # local_order_number lo genera la View para evitar colisiones, pero si
+        # el cliente lo envía, lo respetamos.
+        order = Order.objects.create(**validated_data)
+        for item in items_data:
+            product = None
+            product_id = item.get('product_id')
+            if product_id:
+                product = Product.objects.filter(pk=product_id).first()
+            unit_price = item['unit_price']
+            quantity = item['quantity']
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                name_snapshot=item['name'],
+                sku_snapshot=item.get('sku') or (product.sku if product else None),
+                quantity=quantity,
+                unit_price=unit_price,
+                line_total=unit_price * quantity,
+            )
+        return order

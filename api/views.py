@@ -270,3 +270,83 @@ class ClientConfigurationByDomainView(generics.RetrieveAPIView):
         except ClientConfiguration.DoesNotExist:
             from rest_framework.exceptions import NotFound
             raise NotFound(f"No se encontró configuración para el dominio '{domain}'")
+
+
+# ==================== Órdenes / Ventas ====================
+
+class OrderFilter(django_filters.FilterSet):
+    org_slug = django_filters.CharFilter(field_name='catalogue__organization__slug', lookup_expr='iexact')
+    catalogue_code = django_filters.CharFilter(field_name='catalogue__code', lookup_expr='iexact')
+    created_from = django_filters.IsoDateTimeFilter(field_name='created', lookup_expr='gte')
+    created_to = django_filters.IsoDateTimeFilter(field_name='created', lookup_expr='lte')
+    min_total = django_filters.NumberFilter(field_name='total', lookup_expr='gte')
+    max_total = django_filters.NumberFilter(field_name='total', lookup_expr='lte')
+
+    class Meta:
+        model = Order
+        fields = [
+            'status', 'catalogue', 'catalogue_code', 'org_slug',
+            'card_brand', 'card_type', 'terminal_id',
+            'created_from', 'created_to', 'min_total', 'max_total',
+        ]
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de ventas. POST /api/order/ es lo que invoca el totem tras la
+    aprobación del POS Transbank. Idempotente vía external_transaction_id.
+    """
+    queryset = (
+        Order.objects.filter(is_removed=False)
+        .select_related('catalogue', 'catalogue__organization')
+        .prefetch_related('items')
+    )
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    search_fields = [
+        'external_transaction_id', 'authorization_code', 'local_order_number',
+        'ticket', 'terminal_id', 'last_4_digits',
+    ]
+    filterset_class = OrderFilter
+    ordering_fields = ['created', 'total']
+    ordering = ['-created']
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return OrderCreateSerializer
+        return OrderSerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        Idempotencia: si ya existe una Order con el mismo external_transaction_id,
+        devolvemos la existente con HTTP 200 en vez de crear una duplicada. Esto
+        permite al totem reintentar el POST sin riesgo si la red se cortó.
+        """
+        external_id = request.data.get('external_transaction_id')
+        if external_id:
+            existing = Order.objects.filter(external_transaction_id=external_id).first()
+            if existing:
+                return Response(
+                    OrderSerializer(existing).data,
+                    status=status.HTTP_200_OK,
+                )
+
+        write_serializer = self.get_serializer(data=request.data)
+        write_serializer.is_valid(raise_exception=True)
+        order = write_serializer.save()
+
+        # Generar local_order_number si el cliente no lo envió: secuencia diaria
+        # de 4 dígitos por catálogo (suficiente para el voucher).
+        if not order.local_order_number:
+            from django.utils import timezone
+            today = timezone.now().date()
+            count_today = Order.objects.filter(
+                catalogue=order.catalogue,
+                created__date=today,
+            ).count()
+            order.local_order_number = str(count_today).zfill(4)
+            order.save(update_fields=['local_order_number'])
+
+        return Response(
+            OrderSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
