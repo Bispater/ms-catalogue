@@ -13,6 +13,7 @@ router.register(r'playlist', views.PlaylistViewSet, basename='playlist')
 router.register(r'video', views.VideoViewSet, basename='video')
 router.register(r'client-configurations', views.ClientConfigurationViewSet, basename='client-configuration')
 router.register(r'order', views.OrderViewSet, basename='order')
+router.register(r'terminal', views.TerminalViewSet, basename='terminal')
 
 # URLs personalizadas
 urlpatterns = [

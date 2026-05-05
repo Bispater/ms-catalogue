@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration, Playlist, Video, CataloguePlaylist, Order, OrderItem
+from .models import Product, Category, Brand, Images, ImportFile, MetaData, Organization, Catalogue, Slide, ClientConfiguration, Playlist, Video, CataloguePlaylist, Order, OrderItem, Terminal
 from .forms import ProductAdminForm, MyModelForm, ClientConfigurationForm
 
 class MetaDataInline(admin.StackedInline):
@@ -317,6 +317,35 @@ class OrderAdmin(admin.ModelAdmin):
         }),
         ('Auditoría', {
             'fields': ('raw_response', 'notes', 'created', 'modified', 'is_removed'),
+            'classes': ('collapse',),
+        }),
+    )
+
+
+# ==================== Terminales ====================
+
+@admin.register(Terminal)
+class TerminalAdmin(admin.ModelAdmin):
+    list_display = (
+        'code', 'catalogue', 'pos_terminal_id', 'port',
+        'connected', 'last_state', 'last_heartbeat_at',
+    )
+    list_filter = ('connected', 'last_state', 'catalogue', 'catalogue__organization')
+    search_fields = ('code', 'pos_terminal_id', 'commerce_code', 'port')
+    readonly_fields = ('last_heartbeat_at', 'last_poll_at', 'created', 'modified')
+    fieldsets = (
+        ('Identidad', {
+            'fields': ('catalogue', 'code', 'pos_terminal_id', 'commerce_code', 'service_version'),
+        }),
+        ('Estado', {
+            'fields': ('connected', 'keys_loaded', 'port', 'last_state', 'last_state_message'),
+        }),
+        ('Telemetría', {
+            'fields': ('last_heartbeat_at', 'last_poll_at', 'created', 'modified'),
+            'classes': ('collapse',),
+        }),
+        ('Notas', {
+            'fields': ('notes',),
             'classes': ('collapse',),
         }),
     )

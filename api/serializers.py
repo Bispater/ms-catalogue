@@ -550,3 +550,39 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 line_total=unit_price * quantity,
             )
         return order
+
+
+# ==================== Terminales ====================
+
+class TerminalSerializer(serializers.ModelSerializer):
+    catalogue_code = serializers.CharField(source='catalogue.code', read_only=True)
+    catalogue_name = serializers.CharField(source='catalogue.name', read_only=True)
+    is_online = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Terminal
+        fields = [
+            'id', 'catalogue', 'catalogue_code', 'catalogue_name',
+            'code', 'pos_terminal_id', 'commerce_code', 'port',
+            'connected', 'keys_loaded', 'last_state', 'last_state_message',
+            'last_heartbeat_at', 'last_poll_at',
+            'service_version', 'notes',
+            'is_online',
+            'created', 'modified',
+        ]
+        read_only_fields = ['created', 'modified', 'is_online']
+
+
+class TerminalHeartbeatSerializer(serializers.Serializer):
+    """Payload que envía transbank-pos-service cada N segundos."""
+    catalogue_code = serializers.CharField(max_length=50)
+    code = serializers.CharField(max_length=60)
+    pos_terminal_id = serializers.CharField(max_length=40, required=False, allow_null=True, allow_blank=True)
+    commerce_code = serializers.CharField(max_length=40, required=False, allow_null=True, allow_blank=True)
+    port = serializers.CharField(max_length=40, required=False, allow_null=True, allow_blank=True)
+    connected = serializers.BooleanField(required=False, default=False)
+    keys_loaded = serializers.BooleanField(required=False, default=False)
+    last_state = serializers.CharField(max_length=30, required=False)
+    last_state_message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    last_poll_at = serializers.DateTimeField(required=False, allow_null=True)
+    service_version = serializers.CharField(max_length=40, required=False, allow_blank=True, allow_null=True)

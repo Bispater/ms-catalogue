@@ -4,6 +4,7 @@ from rest_framework import filters, status, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, generics
+from rest_framework.decorators import action
 from .serializers import *
 from .models import *
 
@@ -351,3 +352,68 @@ class OrderViewSet(viewsets.ModelViewSet):
             OrderSerializer(order).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# ==================== Terminales ====================
+
+class TerminalFilter(django_filters.FilterSet):
+    catalogue_code = django_filters.CharFilter(field_name='catalogue__code', lookup_expr='iexact')
+    org_slug = django_filters.CharFilter(field_name='catalogue__organization__slug', lookup_expr='iexact')
+
+    class Meta:
+        model = Terminal
+        fields = ['catalogue', 'catalogue_code', 'org_slug', 'connected', 'last_state']
+
+
+class TerminalViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de terminales (totems con POS). El POST /api/terminal/heartbeat/ es la
+    forma usual de aparición: el servicio del totem hace upsert ahí cada minuto.
+    """
+    queryset = Terminal.objects.select_related('catalogue', 'catalogue__organization').all()
+    serializer_class = TerminalSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    filterset_class = TerminalFilter
+    search_fields = ['code', 'pos_terminal_id', 'commerce_code', 'port']
+    ordering_fields = ['code', 'last_heartbeat_at', 'created']
+    ordering = ['catalogue', 'code']
+
+    @action(detail=False, methods=['post'], url_path='heartbeat')
+    def heartbeat(self, request):
+        """
+        POST /api/terminal/heartbeat/
+
+        Upsert por (catalogue_code, code). Crea el Terminal si no existe.
+        Actualiza estado, heartbeat y poll timestamps.
+        """
+        from django.utils import timezone
+
+        serializer = TerminalHeartbeatSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            catalogue = Catalogue.objects.get(code=data['catalogue_code'])
+        except Catalogue.DoesNotExist:
+            return Response(
+                {'detail': f'No existe catálogo con código {data["catalogue_code"]}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        terminal, _created = Terminal.objects.get_or_create(
+            catalogue=catalogue,
+            code=data['code'],
+        )
+
+        # Aplicar campos opcionales si vinieron
+        for field in ('pos_terminal_id', 'commerce_code', 'port',
+                      'connected', 'keys_loaded',
+                      'last_state', 'last_state_message',
+                      'last_poll_at', 'service_version'):
+            if field in data and data[field] is not None:
+                setattr(terminal, field, data[field])
+
+        terminal.last_heartbeat_at = timezone.now()
+        terminal.save()
+
+        return Response(TerminalSerializer(terminal).data, status=status.HTTP_200_OK)

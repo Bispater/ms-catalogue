@@ -1725,3 +1725,103 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f'{self.quantity}x {self.name_snapshot}'
+
+
+# ==================== Terminales (totems con POS conectado) ====================
+
+TERMINAL_STATE = [
+    ('IDLE', 'Idle'),
+    ('INICIANDO_PAGO', 'Iniciando pago'),
+    ('ESPERANDO_TARJETA', 'Esperando tarjeta'),
+    ('PROCESANDO', 'Procesando'),
+    ('APROBADO', 'Aprobado'),
+    ('RECHAZADO', 'Rechazado'),
+    ('CANCELADO', 'Cancelado'),
+    ('ERROR', 'Error'),
+    ('OFFLINE', 'Offline'),
+]
+
+
+class Terminal(TimeStampedModel):
+    """
+    Representa un totem físico con su POS Transbank conectado. Recibe heartbeats
+    periódicos desde transbank-pos-service y los expone al panel admin.
+    """
+    catalogue = models.ForeignKey(
+        'Catalogue',
+        on_delete=models.CASCADE,
+        related_name='terminals',
+        verbose_name=_('catalogue'))
+    code = models.CharField(
+        max_length=60,
+        verbose_name=_('terminal code'),
+        help_text='Identificador del totem definido por el operador (ej: TOTEM-01).')
+    pos_terminal_id = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('pos terminal id'),
+        help_text='ID del POS reportado por Transbank (ej: IM750308).')
+    commerce_code = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('commerce code'))
+    port = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('serial port'),
+        help_text='Puerto USB serial (ej: COM5).')
+    connected = models.BooleanField(
+        default=False,
+        verbose_name=_('connected'))
+    keys_loaded = models.BooleanField(
+        default=False,
+        verbose_name=_('keys loaded'))
+    last_state = models.CharField(
+        max_length=30,
+        choices=TERMINAL_STATE,
+        default='OFFLINE',
+        verbose_name=_('last state'))
+    last_state_message = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('last state message'))
+    last_heartbeat_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('last heartbeat at'),
+        help_text='Última vez que el servicio del totem reportó.')
+    last_poll_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('last poll at'),
+        help_text='Última vez que el servicio hizo poll al POS.')
+    service_version = models.CharField(
+        max_length=40,
+        blank=True,
+        null=True,
+        verbose_name=_('service version'))
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('notes'))
+
+    class Meta:
+        verbose_name = _('terminal')
+        verbose_name_plural = _('terminals')
+        ordering = ['catalogue', 'code']
+        unique_together = [['catalogue', 'code']]
+
+    def __str__(self):
+        return f'{self.code} ({self.catalogue.code if self.catalogue else "—"})'
+
+    @property
+    def is_online(self) -> bool:
+        """Online si reportó hace menos de 3 minutos."""
+        if not self.last_heartbeat_at:
+            return False
+        from django.utils import timezone
+        delta = timezone.now() - self.last_heartbeat_at
+        return delta.total_seconds() < 180
