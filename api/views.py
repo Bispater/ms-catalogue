@@ -281,11 +281,12 @@ class OrderFilter(django_filters.FilterSet):
     created_to = django_filters.IsoDateTimeFilter(field_name='created', lookup_expr='lte')
     min_total = django_filters.NumberFilter(field_name='total', lookup_expr='gte')
     max_total = django_filters.NumberFilter(field_name='total', lookup_expr='lte')
+    status__in = django_filters.BaseInFilter(field_name='status', lookup_expr='in')
 
     class Meta:
         model = Order
         fields = [
-            'status', 'catalogue', 'catalogue_code', 'org_slug',
+            'status', 'status__in', 'catalogue', 'catalogue_code', 'org_slug',
             'card_brand', 'card_type', 'terminal_id',
             'created_from', 'created_to', 'min_total', 'max_total',
         ]
