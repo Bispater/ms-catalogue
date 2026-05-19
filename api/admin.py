@@ -86,12 +86,24 @@ class ClientConfigurationInline(admin.StackedInline):
     form = ClientConfigurationForm
     extra = 0
     classes = ['collapse']
+    autocomplete_fields = ['upsell_product']
     fieldsets = (
         ('Configuración del Cliente', {
             'fields': ('name', 'domain', 'description', 'is_active')
         }),
+        ('Diseño', {
+            'fields': ('theme_version',),
+        }),
         ('Colores y Branding', {
             'fields': ('primary_color', 'secondary_color', 'accent_color', 'logo', 'favicon'),
+        }),
+        ('Sugerencia en carrito (Upsell)', {
+            'fields': (
+                'upsell_enabled', 'upsell_product',
+                'upsell_title', 'upsell_description',
+                'upsell_price', 'upsell_cta_label',
+            ),
+            'description': 'Tarjeta que aparece en el carrito invitando a sumar otro producto.',
         }),
         ('Metadata', {
             'fields': ('metadata',),
@@ -139,18 +151,30 @@ class SlideAdmin(admin.ModelAdmin):
 @admin.register(ClientConfiguration)
 class ClientConfigurationAdmin(admin.ModelAdmin):
     form = ClientConfigurationForm
-    list_display = ['name', 'catalogue', 'domain', 'primary_color', 'is_active', 'created', 'modified']
-    list_filter = ['catalogue', 'catalogue__organization', 'is_active', 'created', 'modified']
+    list_display = ['name', 'catalogue', 'domain', 'primary_color', 'theme_version', 'upsell_enabled', 'is_active', 'created', 'modified']
+    list_filter = ['catalogue', 'catalogue__organization', 'theme_version', 'upsell_enabled', 'is_active', 'created', 'modified']
     search_fields = ['name', 'domain', 'description']
     list_editable = ['is_active']
     readonly_fields = ['created', 'modified']
+    autocomplete_fields = ['upsell_product']
     fieldsets = (
         ('Información Básica', {
             'fields': ('name', 'catalogue', 'domain', 'description', 'is_active')
         }),
+        ('Diseño', {
+            'fields': ('theme_version',),
+        }),
         ('Colores y Branding', {
             'fields': ('primary_color', 'secondary_color', 'accent_color', 'logo', 'favicon'),
             'classes': ('collapse',)
+        }),
+        ('Sugerencia en carrito (Upsell)', {
+            'fields': (
+                'upsell_enabled', 'upsell_product',
+                'upsell_title', 'upsell_description',
+                'upsell_price', 'upsell_cta_label',
+            ),
+            'description': 'Tarjeta que aparece en el carrito invitando a sumar otro producto.',
         }),
         ('Metadata', {
             'fields': ('metadata',),

@@ -1079,6 +1079,14 @@ class Slide(BaseModel):
 
 # Modelo de Configuración del Cliente
 class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
+    THEME_VERSION_CHOICES = [
+        ('classic', 'Classic (diseño original)'),
+        ('v1-midnight', 'V1 Midnight (disco / nightclub)'),
+        ('v2-neon', 'V2 Neon After Hours'),
+        ('v3-vip', 'V3 VIP'),
+        ('v4-aurora', 'V4 Aurora'),
+    ]
+
     catalogue = models.ForeignKey(
         'Catalogue',
         on_delete=models.CASCADE,
@@ -1144,6 +1152,59 @@ class ClientConfiguration(TimeStampedModel, SoftDeletableModel):
         default=dict,
         verbose_name=_('metadata'),
         help_text="Información adicional en formato JSON"
+    )
+    theme_version = models.CharField(
+        max_length=32,
+        choices=THEME_VERSION_CHOICES,
+        default='classic',
+        verbose_name=_('theme version'),
+        help_text="Versión visual aplicada en el totem (V1 Midnight, V2 Neon, etc.)"
+    )
+    # ===== Upsell / sugerencia en carrito =====
+    # Tarjeta sugerencia que aparece en el checkout, e.g.
+    # "¿Sumas un shot? Tequila al precio especial de $1.990 con tu compra".
+    upsell_enabled = models.BooleanField(
+        default=False,
+        verbose_name=_('upsell enabled'),
+        help_text='Mostrar tarjeta de sugerencia en el carrito'
+    )
+    upsell_product = models.ForeignKey(
+        'Product',
+        on_delete=models.SET_NULL,
+        related_name='upsell_configurations',
+        blank=True,
+        null=True,
+        verbose_name=_('upsell product'),
+        help_text='Producto sugerido al cliente al revisar el carrito'
+    )
+    upsell_title = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name=_('upsell title'),
+        help_text='Encabezado de la sugerencia, e.g. "¿Sumas un shot?"'
+    )
+    upsell_description = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name=_('upsell description'),
+        help_text='Texto corto de la sugerencia (incluye el precio si quieres mostrarlo)'
+    )
+    upsell_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name=_('upsell price'),
+        help_text='Precio especial al agregar desde la sugerencia (vacío = precio del producto)'
+    )
+    upsell_cta_label = models.CharField(
+        max_length=32,
+        blank=True,
+        default='Sumar',
+        verbose_name=_('upsell CTA label'),
+        help_text='Texto del botón, e.g. "Sumar"'
     )
     is_active = models.BooleanField(
         default=True,
@@ -1819,9 +1880,11 @@ class Terminal(TimeStampedModel):
 
     @property
     def is_online(self) -> bool:
-        """Online si reportó hace menos de 3 minutos."""
+        """Online si reportó hace menos de 90s y no se apagó limpiamente."""
         if not self.last_heartbeat_at:
+            return False
+        if self.last_state == 'OFFLINE':
             return False
         from django.utils import timezone
         delta = timezone.now() - self.last_heartbeat_at
-        return delta.total_seconds() < 180
+        return delta.total_seconds() < 90

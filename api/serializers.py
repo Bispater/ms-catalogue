@@ -156,6 +156,7 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
     """
     logo_url = serializers.SerializerMethodField()
     favicon_url = serializers.SerializerMethodField()
+    upsell_product_detail = serializers.SerializerMethodField()
 
     def get_logo_url(self, obj):
         """Obtiene la URL completa del logo"""
@@ -175,15 +176,39 @@ class ClientConfigurationSerializer(serializers.ModelSerializer):
             return obj.favicon.url
         return None
 
+    def get_upsell_product_detail(self, obj):
+        """Snapshot mínimo del producto sugerido (evita lookup extra en el totem)."""
+        product = obj.upsell_product
+        if not product or product.is_removed:
+            return None
+        request = self.context.get('request')
+        image_url = None
+        if product.image:
+            try:
+                image_url = request.build_absolute_uri(product.image.url) if request else product.image.url
+            except Exception:
+                image_url = None
+        return {
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'price': float(product.price_1) if product.price_1 is not None else None,
+            'image': image_url,
+            'short_description': product.short_description,
+        }
+
     class Meta:
         model = ClientConfiguration
         fields = [
             'id', 'catalogue', 'name', 'primary_color',
             'secondary_color', 'accent_color', 'logo', 'favicon',
             'logo_url', 'favicon_url', 'domain', 'description',
-            'metadata', 'is_active', 'created', 'modified'
+            'metadata', 'theme_version',
+            'upsell_enabled', 'upsell_product', 'upsell_product_detail',
+            'upsell_title', 'upsell_description', 'upsell_price', 'upsell_cta_label',
+            'is_active', 'created', 'modified'
         ]
-        read_only_fields = ['created', 'modified']
+        read_only_fields = ['created', 'modified', 'upsell_product_detail']
 
 
 class OrganizationSerializer(serializers.ModelSerializer):

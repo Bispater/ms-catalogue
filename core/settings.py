@@ -254,8 +254,10 @@ if cors_origins:
 else:
     # Valores por defecto para desarrollo
     CORS_ALLOWED_ORIGINS = [
-        "http://localhost:4200",  # Angular dev server
+        "http://localhost:4200",  # Angular dev server (catalogue-admin)
         "http://127.0.0.1:4200",
+        "http://localhost:4201",  # Angular dev server (totem)
+        "http://127.0.0.1:4201",
         "http://localhost:3000",  # React/Next.js dev server (si usas)
         "http://127.0.0.1:3000",
     ]
