@@ -163,6 +163,29 @@ class VideoViewSet(viewsets.ModelViewSet):
     ordering = ['playlist', 'order', 'name']
 
 
+class CataloguePlaylistFilter(django_filters.FilterSet):
+    catalogue_code = django_filters.CharFilter(field_name='catalogue__code', lookup_expr='iexact')
+    org_slug = django_filters.CharFilter(field_name='catalogue__organization__slug', lookup_expr='iexact')
+
+    class Meta:
+        model = CataloguePlaylist
+        fields = ['catalogue', 'catalogue_code', 'playlist', 'is_active', 'org_slug']
+
+
+class CataloguePlaylistViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de asignaciones Playlist→Catalogue con vigencia (start_date, end_date).
+    """
+    queryset = CataloguePlaylist.objects.filter(is_removed=False).select_related(
+        'catalogue', 'catalogue__organization', 'playlist'
+    )
+    serializer_class = CataloguePlaylistSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_class = CataloguePlaylistFilter
+    ordering_fields = ['catalogue', 'order', 'start_date', 'created']
+    ordering = ['catalogue', 'order', 'start_date']
+
+
 class CompleteCatalogueView(APIView):
     """
     Vista para obtener toda la información de un catálogo por su código
@@ -213,14 +236,16 @@ class CompleteCatalogueView(APIView):
 
 class ClientConfigurationViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestionar las configuraciones de cliente
+    ViewSet para gestionar las configuraciones de cliente.
+
+    Lookup por id (default). Para buscar por nombre/dominio existen los
+    endpoints alternos /api/client-config/<name>/ y /api/client-config-by-domain/.
     """
-    queryset = ClientConfiguration.objects.filter(is_active=True)
+    queryset = ClientConfiguration.objects.filter(is_removed=False)
     serializer_class = ClientConfigurationSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['name', 'domain', 'description']
     filterset_fields = ['is_active', 'catalogue']  # organization_id fue eliminado
-    lookup_field = 'name'  # Permite buscar por nombre en lugar de ID
 
 
 class ClientConfigurationByNameView(generics.RetrieveAPIView):
@@ -362,7 +387,7 @@ class TerminalFilter(django_filters.FilterSet):
 
     class Meta:
         model = Terminal
-        fields = ['catalogue', 'catalogue_code', 'org_slug', 'connected', 'last_state']
+        fields = ['catalogue', 'catalogue_code', 'org_slug', 'connected', 'last_state', 'attention_required']
 
 
 class TerminalViewSet(viewsets.ModelViewSet):
@@ -377,6 +402,75 @@ class TerminalViewSet(viewsets.ModelViewSet):
     search_fields = ['code', 'pos_terminal_id', 'commerce_code', 'port']
     ordering_fields = ['code', 'last_heartbeat_at', 'created']
     ordering = ['catalogue', 'code']
+
+    @action(detail=False, methods=['post'], url_path='alert')
+    def raise_alert(self, request):
+        """
+        POST /api/terminal/alert/
+        Body: { catalogue_code, code, message? }
+
+        El totem llama acá cuando algo falla y el cliente final pide ayuda.
+        Marca el Terminal con attention_required=True para que aparezca en el admin.
+        """
+        from django.utils import timezone
+
+        serializer = TerminalAlertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            catalogue = Catalogue.objects.get(code=data['catalogue_code'])
+        except Catalogue.DoesNotExist:
+            return Response(
+                {'detail': f'No existe catálogo con código {data["catalogue_code"]}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        terminal, _created = Terminal.objects.get_or_create(
+            catalogue=catalogue,
+            code=data['code'],
+        )
+        terminal.attention_required = True
+        terminal.attention_message = data.get('message') or 'El totem solicita atención'
+        terminal.attention_requested_at = timezone.now()
+        # Nueva alerta → resetear acknowledged para que cuente como no leída
+        terminal.attention_acknowledged_at = None
+        terminal.save(update_fields=[
+            'attention_required', 'attention_message',
+            'attention_requested_at', 'attention_acknowledged_at', 'modified',
+        ])
+        return Response(TerminalSerializer(terminal).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='ack-alert')
+    def ack_alert(self, request, pk=None):
+        """
+        POST /api/terminal/<id>/ack-alert/
+        Marca la alerta como vista (paso intermedio antes de resolver).
+        La alerta sigue activa pero deja de contar como "no leída" en el badge.
+        """
+        from django.utils import timezone
+        terminal = self.get_object()
+        if terminal.attention_required and not terminal.attention_acknowledged_at:
+            terminal.attention_acknowledged_at = timezone.now()
+            terminal.save(update_fields=['attention_acknowledged_at', 'modified'])
+        return Response(TerminalSerializer(terminal).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='resolve-alert')
+    def resolve_alert(self, request, pk=None):
+        """
+        POST /api/terminal/<id>/resolve-alert/
+        Marca la alerta como resuelta. Se llama desde el admin.
+        """
+        terminal = self.get_object()
+        terminal.attention_required = False
+        terminal.attention_message = None
+        terminal.attention_requested_at = None
+        terminal.attention_acknowledged_at = None
+        terminal.save(update_fields=[
+            'attention_required', 'attention_message',
+            'attention_requested_at', 'attention_acknowledged_at', 'modified',
+        ])
+        return Response(TerminalSerializer(terminal).data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['post'], url_path='heartbeat')
     def heartbeat(self, request):

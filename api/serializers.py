@@ -259,10 +259,17 @@ class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = [
-            'id', 'name', 'description', 'file', 'file_url',
-            'thumbnail', 'thumbnail_url', 'orientation', 'duration',
-            'order', 'is_active', 'created', 'modified'
+            'id', 'playlist', 'organization', 'name', 'description',
+            'file', 'file_url', 'thumbnail', 'thumbnail_url',
+            'orientation', 'duration', 'order', 'is_active',
+            'created', 'modified'
         ]
+        extra_kwargs = {
+            'organization': {'required': False, 'allow_null': True},
+            'thumbnail': {'required': False, 'allow_null': True},
+            'duration': {'required': False, 'allow_null': True},
+            'orientation': {'required': False},
+        }
 
 
 class PlaylistSerializer(serializers.ModelSerializer):
@@ -270,20 +277,64 @@ class PlaylistSerializer(serializers.ModelSerializer):
     Serializer para Playlist con sus videos
     """
     videos = serializers.SerializerMethodField()
+    videos_count = serializers.SerializerMethodField()
+    assignments_count = serializers.SerializerMethodField()
+    organization_name = serializers.SerializerMethodField()
 
     def get_videos(self, obj):
         """Obtiene videos activos ordenados"""
         videos = obj.videos.filter(
-            is_active=True,
             is_removed=False
         ).order_by('order', 'name')
         return VideoSerializer(videos, many=True, context=self.context).data
+
+    def get_videos_count(self, obj):
+        return obj.videos.filter(is_removed=False).count()
+
+    def get_assignments_count(self, obj):
+        return obj.catalogue_assignments.filter(is_removed=False).count()
+
+    def get_organization_name(self, obj):
+        return obj.organization.name if obj.organization else None
 
     class Meta:
         model = Playlist
         fields = [
             'id', 'name', 'slug', 'description', 'duration',
-            'is_active', 'videos', 'created', 'modified'
+            'is_active', 'organization', 'organization_name',
+            'videos', 'videos_count', 'assignments_count',
+            'created', 'modified'
+        ]
+
+
+class CataloguePlaylistSerializer(serializers.ModelSerializer):
+    """
+    Serializer para CataloguePlaylist (vincula Playlist a Catalogue con vigencia).
+    """
+    catalogue_name = serializers.SerializerMethodField()
+    catalogue_code = serializers.SerializerMethodField()
+    playlist_name = serializers.SerializerMethodField()
+    is_current = serializers.SerializerMethodField()
+
+    def get_catalogue_name(self, obj):
+        return obj.catalogue.name if obj.catalogue else None
+
+    def get_catalogue_code(self, obj):
+        return obj.catalogue.code if obj.catalogue else None
+
+    def get_playlist_name(self, obj):
+        return obj.playlist.name if obj.playlist else None
+
+    def get_is_current(self, obj):
+        return obj.is_current()
+
+    class Meta:
+        model = CataloguePlaylist
+        fields = [
+            'id', 'catalogue', 'catalogue_name', 'catalogue_code',
+            'playlist', 'playlist_name',
+            'start_date', 'end_date', 'order', 'is_active',
+            'is_current', 'created', 'modified'
         ]
 
 
@@ -592,10 +643,18 @@ class TerminalSerializer(serializers.ModelSerializer):
             'connected', 'keys_loaded', 'last_state', 'last_state_message',
             'last_heartbeat_at', 'last_poll_at',
             'service_version', 'notes',
+            'attention_required', 'attention_message', 'attention_requested_at', 'attention_acknowledged_at',
             'is_online',
             'created', 'modified',
         ]
         read_only_fields = ['created', 'modified', 'is_online']
+
+
+class TerminalAlertSerializer(serializers.Serializer):
+    """Payload del totem cuando solicita atención humana."""
+    catalogue_code = serializers.CharField(max_length=50)
+    code = serializers.CharField(max_length=60)
+    message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
 class TerminalHeartbeatSerializer(serializers.Serializer):

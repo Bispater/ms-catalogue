@@ -1869,6 +1869,27 @@ class Terminal(TimeStampedModel):
         null=True,
         verbose_name=_('notes'))
 
+    # Alerta de atención: el totem puede solicitar ayuda al admin (ej. impresora
+    # sin papel, POS desconectado, error que el cliente final no puede resolver).
+    attention_required = models.BooleanField(
+        default=False,
+        verbose_name=_('attention required'),
+        help_text='True cuando el totem necesita ayuda humana.')
+    attention_message = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('attention message'),
+        help_text='Motivo de la alerta reportado por el totem.')
+    attention_requested_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('attention requested at'))
+    attention_acknowledged_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('attention acknowledged at'),
+        help_text='Cuándo un admin vio la alerta (paso intermedio antes de resolver).')
+
     class Meta:
         verbose_name = _('terminal')
         verbose_name_plural = _('terminals')
