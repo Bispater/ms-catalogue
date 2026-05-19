@@ -185,6 +185,32 @@ class CataloguePlaylistViewSet(viewsets.ModelViewSet):
     ordering_fields = ['catalogue', 'order', 'start_date', 'created']
     ordering = ['catalogue', 'order', 'start_date']
 
+    def create(self, request, *args, **kwargs):
+        # El unique_together (catalogue, playlist, start_date) se aplica a TODA
+        # la tabla, incluyendo filas soft-deleted (is_removed=True). El validador
+        # de DRF no las ve (usa el manager por defecto), así que pasaba la
+        # validación y la INSERT explotaba con IntegrityError → 500.
+        # Si encontramos una soft-deleted con la misma tripleta, la "resucitamos".
+        catalogue = request.data.get('catalogue')
+        playlist = request.data.get('playlist')
+        start_date = request.data.get('start_date') or None
+
+        if catalogue and playlist:
+            existing = CataloguePlaylist.all_objects.filter(
+                catalogue_id=catalogue,
+                playlist_id=playlist,
+                start_date=start_date,
+                is_removed=True,
+            ).first()
+            if existing:
+                existing.is_removed = False
+                serializer = self.get_serializer(existing, data=request.data, partial=False)
+                serializer.is_valid(raise_exception=True)
+                serializer.save(is_removed=False)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return super().create(request, *args, **kwargs)
+
 
 class CompleteCatalogueView(APIView):
     """
